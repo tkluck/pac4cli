@@ -13,6 +13,7 @@ check:
 	./testrun.sh $(PORT)
 
 install:
+	systemctl stop pac4cli.service
 	virtualenv -p $(PYTHON) /opt/pac4cli
 	/opt/pac4cli/bin/pip install -r requirements.txt
 	PYTHON=/opt/pac4cli/bin/python make -C pacparser/src install-pymod
@@ -20,3 +21,4 @@ install:
 	install -m 644 pac4cli.service /lib/systemd/system
 	install -m 755 trigger-pac4cli /etc/network/if-up.d
 	install -m 755 pac4cli.sh /etc/profile.d
+	systemctl start pac4cli.service
