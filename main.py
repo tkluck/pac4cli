@@ -9,6 +9,10 @@ from argparse import ArgumentParser
 
 import requests
 import pacparser
+import signal
+
+import systemd.daemon
+import systemd.journal
 
 parser= ArgumentParser(description="""
 Run a simple HTTP proxy on localhost that uses a wpad.dat to decide
@@ -26,23 +30,35 @@ from proxy import WPADProxyRequest
 import logging
 logger = logging.getLogger('pac4cli')
 
+@inlineCallbacks
 def start_server(port, reactor):
     factory = HTTPFactory()
     factory.protocol = proxy.Proxy
     factory.protocol.requestFactory = WPADProxyRequest
 
-    port = reactor.listenTCP(port, factory)
+    yield reactor.listenTCP(port, factory)
 
+    systemd.daemon.notify(systemd.daemon.Notification.READY)
+
+@inlineCallbacks
+def updateWPAD():
+    # TODO: make async
+    pacparser.parse_pac_string(requests.get(args.config).text)
+
+
+@inlineCallbacks
 def main(args):
     try:
         pacparser.init()
         if args.force_proxy:
             WPADProxyRequest.force_proxy = args.force_proxy
         else:
-            pacparser.parse_pac_string(requests.get(args.config).text)
+            yield updateWPAD()
+        signal.signal(signal.SIGHUP, updateWPAD)
         force_proxy_message = ", sending all traffic through %s"%args.force_proxy if args.force_proxy else ""
         logger.info("Starting proxy server on port %s%s", args.port, force_proxy_message)
-        start_server(args.port, reactor)
+        yield start_server(args.port, reactor)
+        logger.info("Successfully started.")
     except Exception as e:
         logger.error("Problem starting the server", exc_info=True)
 
@@ -50,7 +66,7 @@ if __name__ == "__main__":
     import os
     log_level_name = os.environ.get('LOG_LEVEL', 'info')
     log_level = getattr(logging, log_level_name.upper(), logging.INFO)
-    log_handler = logging.StreamHandler()
+    log_handler = systemd.journal.JournaldLogHandler()
     logger.setLevel(log_level)
     logger.addHandler(log_handler)
     log_handler.setFormatter(logging.Formatter(fmt="%(levelname)s [%(process)d]: %(name)s: %(message)s"))

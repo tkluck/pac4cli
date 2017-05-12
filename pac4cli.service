@@ -1,0 +1,7 @@
+[Unit]
+Description=PAC autoconfigured proxy for use through http_proxy= environment variables
+After=network.target
+
+[Service]
+ExecStart=/opt/pac4cli/bin/python /opt/pac4cli/main.py -FDIRECT -p 3128
+Restart=always
