@@ -21,4 +21,5 @@ install:
 	install -m 644 pac4cli.service /lib/systemd/system
 	install -m 755 trigger-pac4cli /etc/network/if-up.d
 	install -m 755 pac4cli.sh /etc/profile.d
+	systemctl enable pac4cli.service
 	systemctl start pac4cli.service
