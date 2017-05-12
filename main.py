@@ -24,18 +24,14 @@ args= parser.parse_args()
 from proxy import WPADProxyRequest
 
 import logging
-logger = logging.getLogger('env-pac')
+logger = logging.getLogger('pac4cli')
 
 def start_server(port, reactor):
-    logger.info("Starting proxy server...")
-
     factory = HTTPFactory()
     factory.protocol = proxy.Proxy
     factory.protocol.requestFactory = WPADProxyRequest
 
     port = reactor.listenTCP(port, factory)
-
-    logger.info("...proxy server started")
 
 def main(args):
     try:
@@ -44,6 +40,8 @@ def main(args):
             WPADProxyRequest.force_proxy = args.force_proxy
         else:
             pacparser.parse_pac_string(requests.get(args.config).text)
+        force_proxy_message = ", sending all traffic through %s"%args.force_proxy if args.force_proxy else ""
+        logger.info("Starting proxy server on port %s%s", args.port, force_proxy_message)
         start_server(args.port, reactor)
     except Exception as e:
         logger.error("Problem starting the server", exc_info=True)
