@@ -4,6 +4,7 @@ from twisted.web.http import HTTPFactory
 from twisted.web.client import Agent, FileBodyProducer, Headers, readBody
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
+from twisted.web.client import Agent
 
 from argparse import ArgumentParser
 
@@ -41,10 +42,16 @@ def start_server(port, reactor):
     systemd.daemon.notify(systemd.daemon.Notification.READY)
 
 @inlineCallbacks
-def updateWPAD():
-    # TODO: make async
-    pacparser.parse_pac_string(requests.get(args.config).text)
-
+def updateWPAD(signum=None, stackframe=None):
+    try:
+        logger.info("Updating WPAD configuration...")
+        agent = Agent(reactor)
+        # TODO: need to ensure this doesn't go through any http_proxy, such as
+        # ourselves :)
+        response = yield agent.request(b'GET', b'http://nu.nl/') # args.config
+        logger.info("Updated configuration.")
+    except Exception as e:
+        logger.error("Problem starting the server", exc_info=True)
 
 @inlineCallbacks
 def main(args):
