@@ -50,13 +50,17 @@ def updateWPAD(signum=None, stackframe=None):
         # ourselves :)
         response = yield agent.request(b'GET', b'http://nu.nl/') # args.config
         logger.info("Updated configuration.")
+        WPADProxyRequest.force_direct = None
     except Exception as e:
-        logger.error("Problem starting the server", exc_info=True)
+        logger.error("Problem updating configuration; falling back to direct", exc_info=True)
+        WPADProxyRequest.force_direct = 'DIRECT'
+
 
 @inlineCallbacks
 def main(args):
     try:
         pacparser.init()
+        WPADProxyRequest.force_direct = 'DIRECT' # direct, until we have a configuration
         if args.force_proxy:
             WPADProxyRequest.force_proxy = args.force_proxy
         else:

@@ -21,6 +21,7 @@ import pacparser
 class WPADProxyRequest(proxy.ProxyRequest):
 
     force_proxy = None
+    force_direct = None
 
     proxy_suggestion_parser = re.compile( r'(DIRECT$|PROXY) (.*)' )
 
@@ -46,7 +47,7 @@ class WPADProxyRequest(proxy.ProxyRequest):
         self.content.seek(0, 0)
         s = self.content.read()
 
-        proxy_suggestion = self.force_proxy or pacparser.find_proxy('http://{}'.format(host))
+        proxy_suggestion = self.force_proxy or self.force_direct or pacparser.find_proxy('http://{}'.format(host))
 
         proxy_suggestions = proxy_suggestion.split(";")
         parsed_proxy_suggestion = self.proxy_suggestion_parser.match(proxy_suggestions[0])
