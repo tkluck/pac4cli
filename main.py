@@ -48,7 +48,7 @@ def updateWPAD(signum=None, stackframe=None):
         agent = Agent(reactor)
         # TODO: need to ensure this doesn't go through any http_proxy, such as
         # ourselves :)
-        response = yield agent.request(b'GET', b'http://nu.nl/') # args.config
+        response = yield agent.request(b'GET', args.config)
         logger.info("Updated configuration.")
         WPADProxyRequest.force_direct = None
     except Exception as e:
