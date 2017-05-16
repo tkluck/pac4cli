@@ -22,6 +22,7 @@ how to connect to the actual server.
 parser.add_argument("-c", "--config", type=str)
 parser.add_argument("-p", "--port", type=int, metavar="PORT")
 parser.add_argument("-F", "--force-proxy", type=str, metavar="PROXY STRING")
+parser.add_argument("--systemd", action='store_true')
 
 args= parser.parse_args()
 
@@ -77,7 +78,10 @@ if __name__ == "__main__":
     import os
     log_level_name = os.environ.get('LOG_LEVEL', 'info')
     log_level = getattr(logging, log_level_name.upper(), logging.INFO)
-    log_handler = systemd.journal.JournaldLogHandler()
+    if args.systemd:
+        log_handler = systemd.journal.JournaldLogHandler()
+    else:
+        log_handler = logging.StreamHandler()
     logger.setLevel(log_level)
     logger.addHandler(log_handler)
     log_handler.setFormatter(logging.Formatter(fmt="%(levelname)s [%(process)d]: %(name)s: %(message)s"))
