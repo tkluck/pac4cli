@@ -93,13 +93,13 @@ def updateWPAD(signum=None, stackframe=None):
             # ourselves :)
             #response = yield agent.request(b'GET', args.config.encode('ascii'))
             response = requests.get(wpad_url)
-            logger.info("Found. Parsing configuration...")
+            logger.info("...found. Parsing configuration...")
             pacparser.parse_pac_string(response.text)
             logger.info("Updated configuration")
             WPADProxyRequest.force_direct = None
             break
         except Exception as e:
-            logger.info("Didn't work: ", exc_info=True)
+            logger.info("...didn't work")
             pass
     else:
         logger.info("None of the tried urls seem to have worked; falling back to direct")
