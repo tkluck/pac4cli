@@ -3,7 +3,7 @@ Description=PAC autoconfigured proxy for use through http_proxy= environment var
 After=network.target
 
 [Service]
-ExecStart=/opt/pac4cli/bin/python /opt/pac4cli/main.py -c http://wpad.booking.pcln.com/wpad.dat -p 3128 --systemd
+ExecStart=/opt/pac4cli/bin/python /opt/pac4cli/main.py -p 3128 --systemd
 Restart=always
 
 [Install]

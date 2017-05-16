@@ -6,6 +6,10 @@ from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
 from twisted.web.client import Agent
 
+import txdbus.client
+# work around txdbus assuming python 2
+txdbus.client.basestring = str
+
 from argparse import ArgumentParser
 
 import requests
@@ -42,18 +46,63 @@ def start_server(port, reactor):
 
     systemd.daemon.notify(systemd.daemon.Notification.READY)
 
+
+@inlineCallbacks
+def get_dhcp_domains():
+    dbus = yield txdbus.client.connect(reactor, 'system')
+    nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                   '/org/freedesktop/NetworkManager')
+    active_connection_paths = yield nm.callRemote('Get',
+            'org.freedesktop.NetworkManager', 'ActiveConnections')
+
+    res = []
+    for path in active_connection_paths:
+        conn = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                          path)
+        config_path = yield conn.callRemote('Get',
+                    'org.freedesktop.NetworkManager.Connection.Active', 'Ip4Config')
+        config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                            config_path)
+        domains = yield config.callRemote('Get',
+                'org.freedesktop.NetworkManager.IP4Config', 'Domains')
+        res.extend(domains)
+    return res
+
+@inlineCallbacks
+def get_possible_configuration_locations():
+    if args.config:
+        return [args.config]
+    else:
+        domains = yield get_dhcp_domains()
+        return [
+            "http://wpad.{}/wpad.dat".format(domain)
+            for domain in domains
+        ]
+
 @inlineCallbacks
 def updateWPAD(signum=None, stackframe=None):
-    try:
-        logger.info("Updating WPAD configuration...")
-        agent = Agent(reactor)
-        # TODO: need to ensure this doesn't go through any http_proxy, such as
-        # ourselves :)
-        response = yield agent.request(b'GET', args.config)
-        logger.info("Updated configuration.")
-        WPADProxyRequest.force_direct = None
-    except Exception as e:
-        logger.error("Problem updating configuration; falling back to direct", exc_info=True)
+    if args.force_proxy:
+        return
+    logger.info("Updating WPAD configuration...")
+    wpad_urls = yield get_possible_configuration_locations()
+    for wpad_url in wpad_urls:
+        logger.info("Trying %s...", wpad_url)
+        try:
+            agent = Agent(reactor)
+            # TODO: need to ensure this doesn't go through any http_proxy, such as
+            # ourselves :)
+            #response = yield agent.request(b'GET', args.config.encode('ascii'))
+            response = requests.get(wpad_url)
+            logger.info("Found. Parsing configuration...")
+            pacparser.parse_pac_string(response.text)
+            logger.info("Updated configuration")
+            WPADProxyRequest.force_direct = None
+            break
+        except Exception as e:
+            logger.info("Didn't work: ", exc_info=True)
+            pass
+    else:
+        logger.info("None of the tried urls seem to have worked; falling back to direct")
         WPADProxyRequest.force_direct = 'DIRECT'
 
 

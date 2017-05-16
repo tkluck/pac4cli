@@ -3,3 +3,4 @@ pyOpenSSL
 requests
 service_identity
 systemd
+txdbus
