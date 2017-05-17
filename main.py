@@ -1,7 +1,7 @@
 from twisted.internet import reactor
 from twisted.web import proxy
 from twisted.web.http import HTTPFactory
-from twisted.web.client import Agent, FileBodyProducer, Headers, readBody
+from twisted.web.client import Agent, readBody
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
 from twisted.web.client import Agent
@@ -12,7 +12,6 @@ txdbus.client.basestring = str
 
 from argparse import ArgumentParser
 
-import requests
 import pacparser
 import signal
 
@@ -85,16 +84,20 @@ def updateWPAD(signum=None, stackframe=None):
         return
     logger.info("Updating WPAD configuration...")
     wpad_urls = yield get_possible_configuration_locations()
+
+    # use DIRECT temporarily; who knows what state the below gets pacparser
+    # in
+    WPADProxyRequest.force_direct = 'DIRECT'
     for wpad_url in wpad_urls:
         logger.info("Trying %s...", wpad_url)
         try:
             agent = Agent(reactor)
             # TODO: need to ensure this doesn't go through any http_proxy, such as
             # ourselves :)
-            #response = yield agent.request(b'GET', args.config.encode('ascii'))
-            response = requests.get(wpad_url)
+            response = yield agent.request(b'GET', args.config.encode('ascii'))
+            body = yield readBody(response)
             logger.info("...found. Parsing configuration...")
-            pacparser.parse_pac_string(response.text)
+            pacparser.parse_pac_string(body.decode('ascii'))
             logger.info("Updated configuration")
             WPADProxyRequest.force_direct = None
             break
