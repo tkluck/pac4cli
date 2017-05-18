@@ -25,6 +25,7 @@ how to connect to the actual server.
 parser.add_argument("-c", "--config", type=str)
 parser.add_argument("-p", "--port", type=int, metavar="PORT")
 parser.add_argument("-F", "--force-proxy", type=str, metavar="PROXY STRING")
+parser.add_argument("--loglevel", type=str, default="info", metavar="LEVEL")
 parser.add_argument("--systemd", action='store_true')
 
 args= parser.parse_args()
@@ -128,7 +129,7 @@ def main(args):
 
 if __name__ == "__main__":
     import os
-    log_level_name = os.environ.get('LOG_LEVEL', 'info')
+    log_level_name = os.environ.get('LOG_LEVEL', args.loglevel)
     log_level = getattr(logging, log_level_name.upper(), logging.INFO)
     if args.systemd:
         log_handler = systemd.journal.JournaldLogHandler()
