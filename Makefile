@@ -20,6 +20,7 @@ install:
 	install -m 644 main.py proxy.py /opt/pac4cli
 	install -m 644 pac4cli.service /lib/systemd/system
 	install -m 755 trigger-pac4cli /etc/network/if-up.d
+	install -m 755 trigger-pac4cli /etc/network/if-down.d
 	install -m 755 pac4cli.sh /etc/profile.d
 	systemctl enable pac4cli.service
 	systemctl start pac4cli.service
@@ -30,4 +31,5 @@ uninstall:
 	rm -rf /opt/pac4cli
 	rm -f /lib/systemd/system/pac4cli.service
 	rm -f /etc/network/if-up.d/trigger-pac4cli
+	rm -f /etc/network/if-down.d/trigger-pac4cli
 	/etc/profile.d/pac4cli.sh
