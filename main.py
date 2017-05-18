@@ -94,7 +94,7 @@ def updateWPAD(signum=None, stackframe=None):
             agent = Agent(reactor)
             # TODO: need to ensure this doesn't go through any http_proxy, such as
             # ourselves :)
-            response = yield agent.request(b'GET', args.config.encode('ascii'))
+            response = yield agent.request(b'GET', wpad_url.encode('ascii'))
             body = yield readBody(response)
             logger.info("...found. Parsing configuration...")
             pacparser.parse_pac_string(body.decode('ascii'))
