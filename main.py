@@ -42,7 +42,7 @@ def start_server(port, reactor):
     factory.protocol = proxy.Proxy
     factory.protocol.requestFactory = WPADProxyRequest
 
-    yield reactor.listenTCP(port, factory)
+    yield reactor.listenTCP(port, factory, interface="127.0.0.1")
 
     systemd.daemon.notify(systemd.daemon.Notification.READY)
 
