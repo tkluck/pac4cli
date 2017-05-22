@@ -1,0 +1,3 @@
+[submodule "pacparser"]
+	path = pacparser
+	url = https://github.com/pacparser/pacparser.git
