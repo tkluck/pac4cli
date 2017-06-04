@@ -42,6 +42,5 @@ uninstall:
 	systemctl disable pac4cli.service
 	rm -rf /opt/pac4cli
 	rm -f /lib/systemd/system/pac4cli.service
-	rm -f /etc/network/if-up.d/trigger-pac4cli
-	rm -f /etc/network/if-down.d/trigger-pac4cli
-	/etc/profile.d/pac4cli.sh
+	rm -f /etc/NetworkManager/dispatcher.d/trigger-pac4cli
+	rm -f /etc/profile.d/pac4cli.sh
