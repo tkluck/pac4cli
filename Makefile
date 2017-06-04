@@ -21,7 +21,7 @@ install:
 	virtualenv -p $(PYTHON) $(DESTDIR)opt/pac4cli
 	$(DESTDIR)opt/pac4cli/bin/pip install -r requirements.txt
 	PYTHON=$(DESTDIR)opt/pac4cli/bin/python make -C pacparser/src install-pymod
-	install -m 644 main.py proxy.py $(DESTDIR)opt/pac4cli
+	install -m 644 main.py proxy.py uninstall.sh $(DESTDIR}opt/pac4cli
 
 	install -D -m 644 pac4cli.service $(DESTDIR)lib/systemd/system/pac4cli.service
 
@@ -46,9 +46,5 @@ endif
 	install -D -m 755 pac4cli.sh $(DESTDIR)etc/profile.d
 
 uninstall:
-	systemctl stop pac4cli.service
-	systemctl disable pac4cli.service
+	$(shell $(DESTDIR)uninstall.sh $(DESTDIR))
 	rm -rf $(DESTDIR)opt/pac4cli
-	rm -f $(DESTDIR)lib/systemd/system/pac4cli.service
-	rm -f $(DESTDIR)etc/NetworkManager/dispatcher.d/trigger-pac4cli
-	rm -f $(DESTDIR)etc/profile.d/pac4cli.sh
