@@ -21,8 +21,6 @@ install:
 	install -m 644 pac4cli.service /lib/systemd/system
 	install -m 755 -o root -g root trigger-pac4cli /etc/NetworkManager/dispatcher.d
 	install -m 755 pac4cli.sh /etc/profile.d
-	systemctl enable pac4cli.service
-	systemctl start pac4cli.service
 
 uninstall:
 	systemctl stop pac4cli.service
