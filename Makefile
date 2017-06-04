@@ -19,8 +19,7 @@ install:
 	PYTHON=/opt/pac4cli/bin/python make -C pacparser/src install-pymod
 	install -m 644 main.py proxy.py /opt/pac4cli
 	install -m 644 pac4cli.service /lib/systemd/system
-	install -m 755 trigger-pac4cli /etc/network/if-up.d
-	install -m 755 trigger-pac4cli /etc/network/if-down.d
+	install -m 755 -o root -g root trigger-pac4cli /etc/NetworkManager/dispatcher.d
 	install -m 755 pac4cli.sh /etc/profile.d
 	systemctl enable pac4cli.service
 	systemctl start pac4cli.service
