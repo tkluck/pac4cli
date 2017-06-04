@@ -3,6 +3,8 @@ PORT ?= 3128
 
 SHELL = /bin/bash
 
+DESTDIR = /
+
 env: requirements.txt
 	virtualenv -p $(PYTHON) env
 	env/bin/pip install -r requirements.txt
@@ -16,14 +18,20 @@ check:
 
 install:
 	systemctl stop pac4cli.service || true
-	virtualenv -p $(PYTHON) /opt/pac4cli
-	/opt/pac4cli/bin/pip install -r requirements.txt
-	PYTHON=/opt/pac4cli/bin/python make -C pacparser/src install-pymod
-	install -m 644 main.py proxy.py /opt/pac4cli
-	install -m 644 pac4cli.service /lib/systemd/system
-	install -m 755 -o root -g root trigger-pac4cli /etc/NetworkManager/dispatcher.d
+	virtualenv -p $(PYTHON) $(DESTDIR)opt/pac4cli
+	$(DESTDIR)opt/pac4cli/bin/pip install -r requirements.txt
+	PYTHON=$(DESTDIR)opt/pac4cli/bin/python make -C pacparser/src install-pymod
+	install -m 644 main.py proxy.py $(DESTDIR)opt/pac4cli
 
-	@RESULT=$$(grep -r --color -E '(\$$http_proxy)|(\$$HTTP_PROXY)' /etc/profile.d | cut -d' ' -f1 | sort | uniq) && \
+	install -D -m 644 pac4cli.service $(DESTDIR)lib/systemd/system/pac4cli.service
+
+ifeq ( $(DESTDIR), / )
+	install -D -m 755 -o root -g root trigger-pac4cli $(DESTDIR)etc/NetworkManager/dispatcher.d/trigger-pac4cli
+else
+	install -D -m 755 trigger-pac4cli $(DESTDIR)etc/NetworkManager/dispatcher.d/trigger-pac4cli
+endif
+
+	@RESULT=$$(grep -r --color -E '(\$$http_proxy)|(\$$HTTP_PROXY)' $(DESTDIR)etc/profile.d | cut -d' ' -f1 | sort | uniq) && \
 	if [[ "x$$RESULT" != "x" ]];then \
 		echo "Found these scripts setting the enviroment variables http_proxy & HTTP_PROXY:" && \
 		while IFS=' ' read -ra FILES; do \
@@ -35,12 +43,12 @@ install:
 		echo "Otherwise, pac4cli may fail to work properly."; \
 	fi
 
-	install -m 755 pac4cli.sh /etc/profile.d
+	install -D -m 755 pac4cli.sh $(DESTDIR)etc/profile.d
 
 uninstall:
 	systemctl stop pac4cli.service
 	systemctl disable pac4cli.service
-	rm -rf /opt/pac4cli
-	rm -f /lib/systemd/system/pac4cli.service
-	rm -f /etc/NetworkManager/dispatcher.d/trigger-pac4cli
-	rm -f /etc/profile.d/pac4cli.sh
+	rm -rf $(DESTDIR)opt/pac4cli
+	rm -f $(DESTDIR)lib/systemd/system/pac4cli.service
+	rm -f $(DESTDIR)etc/NetworkManager/dispatcher.d/trigger-pac4cli
+	rm -f $(DESTDIR)etc/profile.d/pac4cli.sh
