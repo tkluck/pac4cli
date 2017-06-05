@@ -21,7 +21,7 @@ install:
 	virtualenv -p $(PYTHON) $(DESTDIR)opt/pac4cli
 	$(DESTDIR)opt/pac4cli/bin/pip install -r requirements.txt
 	PYTHON=$(DESTDIR)opt/pac4cli/bin/python make -C pacparser/src install-pymod
-	install -m 644 main.py proxy.py uninstall.sh $(DESTDIR}opt/pac4cli
+	install -m 644 main.py proxy.py uninstall.sh $(DESTDIR)opt/pac4cli
 
 	install -D -m 644 pac4cli.service $(DESTDIR)lib/systemd/system/pac4cli.service
 
