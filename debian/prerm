@@ -1,0 +1,4 @@
+#!/bin/sh
+echo "Stopping pac4cli.service..."
+systemctl stop pac4cli.service
+systemctl disable pac4cli.service

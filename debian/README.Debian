@@ -1,0 +1,12 @@
+pac4cli for Debian
+-----------------
+
+We install the python packages txdbus and systemd at post-install time through
+pip. The former since it hasn't been packaged yet; the latter because we need a
+later version.
+
+The package txdbus it's also not strictly python3 compatible expect by a little
+workaround.  If a future version properly supports python3 and if it gets a
+debian package, I'll depend on that, instead.
+
+ -- Timo Kluck <tkluck@infty.nl>  Tue, 06 Jun 2017 20:33:59 +0200
