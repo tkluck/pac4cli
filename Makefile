@@ -23,14 +23,8 @@ install:
 	PYTHON=$(DESTDIR)opt/pac4cli/bin/python make -C pacparser/src install-pymod
 	install -m 644 main.py proxy.py $(DESTDIR)opt/pac4cli
 	install -m 755 uninstall.sh $(DESTDIR)opt/pac4cli
-
 	install -D -m 644 pac4cli.service $(DESTDIR)lib/systemd/system/pac4cli.service
-
-ifeq ( $(DESTDIR), / )
-	install -D -m 755 -o root -g root trigger-pac4cli $(DESTDIR)etc/NetworkManager/dispatcher.d/trigger-pac4cli
-else
 	install -D -m 755 trigger-pac4cli $(DESTDIR)etc/NetworkManager/dispatcher.d/trigger-pac4cli
-endif
 
 	@RESULT=$$(grep -r --color -E '(http_proxy=)|(HTTP_PROXY=)|(https_proxy=)|(HTTPS_PROXY=)' $(DESTDIR)etc/profile.d | cut -d' ' -f1 | sort | uniq) && \
 	if [[ "x$$RESULT" != "x" ]];then \
