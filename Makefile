@@ -5,6 +5,9 @@ SHELL = /bin/bash
 
 DESTDIR ?= /
 
+default:
+	@echo Nothing to build\; run make install.
+
 env: requirements.txt
 	virtualenv -p $(PYTHON) env
 	env/bin/pip install -r requirements.txt
@@ -16,13 +19,16 @@ run:
 check:
 	./testrun.sh $(PORT)
 
-install:
-	systemctl stop pac4cli.service || true
-	virtualenv -p $(PYTHON) $(DESTDIR)opt/pac4cli
+install-env:
+	virtualenv -p $(PYTHON) --system-site-packages $(DESTDIR)opt/pac4cli
 	$(DESTDIR)opt/pac4cli/bin/pip install -r requirements.txt
 	PYTHON=$(DESTDIR)opt/pac4cli/bin/python make DESTDIR=$(DESTDIR) -C pacparser/src install-pymod
-	install -D -m 644 main.py proxy.py $(DESTDIR)opt/pac4cli
-	install -D -m 755 uninstall.sh $(DESTDIR)opt/pac4cli
+
+install-bin:
+	install -m 755 -d $(DESTDIR)opt/pac4cli
+	install -m 644 main.py proxy.py $(DESTDIR)opt/pac4cli
+	install -m 755 uninstall.sh $(DESTDIR)opt/pac4cli
+
 	install -D -m 644 pac4cli.service $(DESTDIR)lib/systemd/system/pac4cli.service
 	install -D -m 755 trigger-pac4cli $(DESTDIR)etc/NetworkManager/dispatcher.d/trigger-pac4cli
 
@@ -38,8 +44,15 @@ install:
 		echo "Otherwise, pac4cli may fail to work properly."; \
 	fi
 
-	install -D -m 755 pac4cli.sh $(DESTDIR)etc/profile.d
+	install -D -m 755 pac4cli.sh $(DESTDIR)etc/profile.d/pac4cli.sh
+
+install: install-env install-bin
+
+install-debian: install-bin
 
 uninstall:
 	$(shell $(DESTDIR)uninstall.sh $(DESTDIR))
 	rm -rf $(DESTDIR)opt/pac4cli
+
+clean:
+	rm -rf env
