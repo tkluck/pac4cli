@@ -32,7 +32,7 @@ else
 	install -D -m 755 trigger-pac4cli $(DESTDIR)etc/NetworkManager/dispatcher.d/trigger-pac4cli
 endif
 
-	@RESULT=$$(grep -r --color -E '(\$$http_proxy)|(\$$HTTP_PROXY)' $(DESTDIR)etc/profile.d | cut -d' ' -f1 | sort | uniq) && \
+	@RESULT=$$(grep -r --color -E '(http_proxy=)|(HTTP_PROXY=)|(https_proxy=)|(HTTPS_PROXY=)' $(DESTDIR)etc/profile.d | cut -d' ' -f1 | sort | uniq) && \
 	if [[ "x$$RESULT" != "x" ]];then \
 		echo "Found these scripts setting the enviroment variables http_proxy & HTTP_PROXY:" && \
 		while IFS=' ' read -ra FILES; do \
