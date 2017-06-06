@@ -3,7 +3,7 @@ PORT ?= 3128
 
 SHELL = /bin/bash
 
-DESTDIR = /
+DESTDIR ?= /
 
 env: requirements.txt
 	virtualenv -p $(PYTHON) env
