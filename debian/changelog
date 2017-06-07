@@ -1,3 +1,9 @@
+pac4cli (0.1ubuntu1) zesty; urgency=medium
+
+  * Add virtualenv to dependencies
+
+ -- Timo Kluck <tkluck@infty.nl>  Wed, 07 Jun 2017 08:29:54 +0200
+
 pac4cli (0.1) zesty; urgency=low
 
   * Initial release
