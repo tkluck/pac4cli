@@ -1,9 +1,11 @@
 PYTHON ?= python3
 PORT ?= 3128
-
 SHELL = /bin/bash
 
-PREFIX ?= /usr
+prefix = /usr/local
+bindir := $(prefix)/bin
+libdir := $(prefix)/lib
+pythonsitedir = $(prefix)/lib/python3/site-packages
 
 default:
 	@echo Nothing to build\; run make install.
@@ -20,7 +22,7 @@ check:
 	./testrun.sh $(PORT)
 
 check-prev-proxies:
-	@RESULT=$$(grep -r --color -E '(http_proxy=)|(HTTP_PROXY=)|(https_proxy=)|(HTTPS_PROXY=)' $(DESTDIR)/$(PREFIX)/etc/profile.d | cut -d' ' -f1 | sort | uniq) && \
+	@RESULT=$$(grep -r --color -E '(http_proxy=)|(HTTP_PROXY=)|(https_proxy=)|(HTTPS_PROXY=)' $(DESTDIR)/etc/profile.d | cut -d' ' -f1 | sort | uniq) && \
 	if [[ "x$$RESULT" != "x" ]];then \
 		echo "Found these scripts setting the enviroment variables http_proxy & HTTP_PROXY:" && \
 		while IFS=' ' read -ra FILES; do \
@@ -44,12 +46,15 @@ install-self-contained: check-prev-proxies
 	install -D -m 755 trigger-pac4cli $(DESTDIR)/etc/NetworkManager/dispatcher.d/trigger-pac4cli
 	install -D -m 755 pac4cli.sh $(DESTDIR)/etc/profile.d/pac4cli.sh
 
-install: check-prev-proxies
-	install -D -m 755 main.py $(DESTDIR)/$(PREFIX)/bin/pac4cli
-	install -D -m 644 proxy.py $(DESTDIR)/$(PREFIX)/lib/python3.6/site-packages
-	install -D -m 644 pac4cli.service $(DESTDIR)/$(PREFIX)/lib/systemd/system/pac4cli.service
-	install -D -m 755 trigger-pac4cli $(DESTDIR)/$(PREFIX)/etc/NetworkManager/dispatcher.d/trigger-pac4cli
-	install -D -m 755 pac4cli.sh $(DESTDIR)/$(PREFIX)/etc/profile.d/pac4cli-proxy.sh
+install: 
+	install -D -m 755 main.py $(DESTDIR)$(bindir)/pac4cli
+	install -D -m 644 proxy.py $(DESTDIR)$(pythonsitedir)
+	install -D -m 644 pac4cli.service $(DESTDIR)$(libdir)/systemd/system/pac4cli.service
+	
+	@sed -i -e 's@/usr/local/bin@'"$(DESTDIR)$(bindir)"'@g' $(DESTDIR)$(libdir)/systemd/system/pac4cli.service
+
+	install -D -m 755 trigger-pac4cli $(DESTDIR)/etc/NetworkManager/dispatcher.d/trigger-pac4cli
+	install -D -m 755 pac4cli.sh $(DESTDIR)/etc/profile.d/pac4cli-proxy.sh
 
 install-debian: install
 

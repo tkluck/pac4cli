@@ -1,12 +1,12 @@
 pre_install() {
 	# check for already defined http(s)_proxy
-	RESULT=$(grep -r --color -E '(http_proxy=)|(HTTP_PROXY=)|(https_proxy=)|(HTTPS_PROXY=)' \
-			${DESTDIR}/${PREFIX}/etc/profile.d | cut -d' ' -f1 | sort | uniq)
+	RESULT=$(grep -r -E '(http_proxy=)|(HTTP_PROXY=)|(https_proxy=)|(HTTPS_PROXY=)' \
+			${DESTDIR}/${PREFIX}/etc/profile.d | cut -d':' -f1 | sort | uniq)
 	if [[ "x${RESULT}" != "x" ]];then 
 		echo "Found these scripts setting the enviroment variables http_proxy & HTTP_PROXY:"
-		while IFS=':' read -ra FILES; do
+		while read -ra FILES; do
 			for FILE in "${FILES[@]}"; do 
-				echo ${FILE::-1}
+				echo ${FILE}
 			done
 		done  <<< "${RESULT}"
 		echo "You have to either remove those definitions, or set them manually to 'localhost:3128'."
@@ -17,6 +17,8 @@ pre_install() {
 pre_upgrade() {
 	IS_ENABLED=$(systemctl is-enabled pac4cli 2>/dev/null)
 	IS_ACTIVE=$(systemctl is-active pac4cli 2>/dev/null)
+
+	systemctl stop pac4cli
 }
 
 post_upgrade() {
