@@ -3,7 +3,7 @@ Description=PAC autoconfigured proxy for use through http_proxy= environment var
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/pac4cli -p 3128 --systemd --loglevel warn
+ExecStart=/usr/local/bin/pac4cli -p 3128 --systemd --loglevel warn
 Restart=always
 
 [Install]
