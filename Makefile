@@ -10,7 +10,11 @@ pythonsitedir = $(prefix)/lib/python3/site-packages
 default:
 	@echo Nothing to build\; run make install.
 
-env: requirements.txt
+pacparser:
+	curl -L https://github.com/pacparser/pacparser/archive/1.3.7.tar.gz | tar -xz
+	mv pacparser-1.3.7 pacparser
+
+env: requirements.txt pacparser
 	virtualenv -p $(PYTHON) env
 	env/bin/pip install -r requirements.txt
 	PYTHON=`pwd`/env/bin/python make -C pacparser/src install-pymod
@@ -34,7 +38,7 @@ check-prev-proxies:
 		echo "Otherwise, pac4cli may fail to work properly."; \
 	fi
 
-install-self-contained: check-prev-proxies
+install-self-contained: check-prev-proxies pacparser
 	virtualenv -p $(PYTHON) --system-site-packages $(DESTDIR)/opt/pac4cli
 	$(DESTDIR)/opt/pac4cli/bin/pip install -r requirements.txt
 	PYTHON=$(DESTDIR)/opt/pac4cli/bin/python make -C pacparser/src install-pymod
@@ -64,3 +68,4 @@ uninstall:
 
 clean:
 	rm -rf env
+	rm -rf pacparser
