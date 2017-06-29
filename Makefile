@@ -61,7 +61,7 @@ install-service:
 
 install-bin:
 	install -D -m 755 main.py $(DESTDIR)$(bindir)/pac4cli
-	install -D -m 644 proxy.py $(DESTDIR)$(pythonsitedir)/proxy.py
+	install -D -m 644 pac4cli.py $(DESTDIR)$(pythonsitedir)/pac4cli.py
 
 install: install-bin install-service
 

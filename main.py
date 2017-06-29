@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 from twisted.internet import reactor
 from twisted.web import proxy
 from twisted.web.http import HTTPFactory
@@ -33,7 +32,7 @@ parser.add_argument("--systemd", action='store_true')
 args= parser.parse_args()
 
 
-from proxy import WPADProxyRequest
+from pac4cli import WPADProxyRequest
 
 import logging
 logger = logging.getLogger('pac4cli')
