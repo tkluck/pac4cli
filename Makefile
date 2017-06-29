@@ -39,20 +39,7 @@ check-prev-proxies:
 		echo "Otherwise, pac4cli may fail to work properly."; \
 	fi
 
-install-self-contained: check-prev-proxies pacparser
-	virtualenv -p $(PYTHON) --system-site-packages $(DESTDIR)/opt/pac4cli
-	$(DESTDIR)/opt/pac4cli/bin/pip install -r requirements.txt
-	PYTHON=$(DESTDIR)/opt/pac4cli/bin/python make -C pacparser/src install-pymod
-
-	install -m 755 -d $(DESTDIR)/opt/pac4cli
-	install -m 644 main.py proxy.py $(DESTDIR)/opt/pac4cli
-	install -m 755 uninstall.sh $(DESTDIR)/opt/pac4cli
-	install -D -m 644 pac4cli.service $(DESTDIR)/lib/systemd/system/pac4cli.service
-	install -D -m 755 trigger-pac4cli $(DESTDIR)/etc/NetworkManager/dispatcher.d/trigger-pac4cli
-	install -D -m 755 pac4cli.sh $(DESTDIR)/etc/profile.d/pac4cli.sh
-
-
-install-service:
+install-service: check-prev-proxies
 	install -D -m 644 pac4cli.service $(DESTDIR)$(libdir)/systemd/system/pac4cli.service
 	
 	@sed -i -e 's@/usr/local/bin@'"$(bindir)"'@g' $(DESTDIR)$(libdir)/systemd/system/pac4cli.service
@@ -62,7 +49,7 @@ install-service:
 
 install-bin:
 	install -D -m 755 main.py $(DESTDIR)$(bindir)/pac4cli
-	@sed -i -e '1s+@PYTHON@'$(PYTHON)'@' $(DESTDIR)$(bindir)/pac4cli
+	@sed -i -e '1s+@PYTHON@+'$(PYTHON)'+' $(DESTDIR)$(bindir)/pac4cli
 
 	install -D -m 644 pac4cli.py $(DESTDIR)$(pythonsitedir)/pac4cli.py
 
@@ -70,7 +57,6 @@ install: install-bin install-service
 
 uninstall:
 	$(shell $(DESTDIR)/uninstall.sh $(DESTDIR)/)
-	rm -rf $(DESTDIR)/opt/pac4cli
 
 clean:
 	rm -rf env
