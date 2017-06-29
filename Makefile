@@ -1,5 +1,5 @@
 PYTHON ?= python3
-PORT ?= 3128
+TESTPORT ?= 23128
 SHELL = /bin/bash
 
 prefix = /usr/local
@@ -19,11 +19,11 @@ env: requirements.txt pacparser
 	env/bin/pip install -r requirements.txt
 	PYTHON=`pwd`/env/bin/python make -C pacparser/src install-pymod
 
-run:
-	env/bin/python main.py -F DIRECT -p $(PORT)
+run: env
+	env/bin/python main.py -F DIRECT -p $(TESTPORT)
 
-check:
-	./testrun.sh $(PORT)
+check: env
+	./testrun.sh $(TESTPORT)
 
 check-prev-proxies:
 	@RESULT=$$(grep -r --color -E '(http_proxy=)|(HTTP_PROXY=)|(https_proxy=)|(HTTPS_PROXY=)' $(DESTDIR)/etc/profile.d | cut -d' ' -f1 | sort | uniq) && \
