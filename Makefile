@@ -5,7 +5,7 @@ SHELL = /bin/bash
 prefix = /usr/local
 bindir := $(prefix)/bin
 libdir := $(prefix)/lib
-pythonsitedir = $(prefix)/lib/python3/site-packages
+pythonsitedir = "$(shell $(PYTHON) -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" )"
 
 default:
 	@echo Nothing to build\; run make install.
