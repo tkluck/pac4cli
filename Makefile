@@ -50,9 +50,8 @@ install-self-contained: check-prev-proxies pacparser
 	install -D -m 755 trigger-pac4cli $(DESTDIR)/etc/NetworkManager/dispatcher.d/trigger-pac4cli
 	install -D -m 755 pac4cli.sh $(DESTDIR)/etc/profile.d/pac4cli.sh
 
-install: 
-	install -D -m 755 main.py $(DESTDIR)$(bindir)/pac4cli
-	install -D -m 644 proxy.py $(DESTDIR)$(pythonsitedir)
+
+install-service:
 	install -D -m 644 pac4cli.service $(DESTDIR)$(libdir)/systemd/system/pac4cli.service
 	
 	@sed -i -e 's@/usr/local/bin@'"$(bindir)"'@g' $(DESTDIR)$(libdir)/systemd/system/pac4cli.service
@@ -60,7 +59,11 @@ install:
 	install -D -m 755 trigger-pac4cli $(DESTDIR)/etc/NetworkManager/dispatcher.d/trigger-pac4cli
 	install -D -m 755 pac4cli.sh $(DESTDIR)/etc/profile.d/pac4cli-proxy.sh
 
-install-debian: install
+install-bin:
+	install -D -m 755 main.py $(DESTDIR)$(bindir)/pac4cli
+	install -D -m 644 proxy.py $(DESTDIR)$(pythonsitedir)/proxy.py
+
+install: install-bin install-service
 
 uninstall:
 	$(shell $(DESTDIR)/uninstall.sh $(DESTDIR)/)
