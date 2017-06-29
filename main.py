@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!@PYTHON@
 from twisted.internet import reactor
 from twisted.web import proxy
 from twisted.web.http import HTTPFactory
