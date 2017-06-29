@@ -17,4 +17,6 @@ System dependencies:
 - systemd
 - NetworkManager
 
-In addition, a few Python package dependencies are installed through pip.
+Python library dependencies from PyPI can be installed through:
+
+    sudo pip3 install -r requirements.txt
