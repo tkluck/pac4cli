@@ -1,3 +1,9 @@
+pac4cli (0.1ubuntu2) zesty; urgency=medium
+
+  * Move to the /usr-based installation instead of /opt.
+
+ -- Timo Kluck <tkluck@infty.nl>  Fri, 30 Jun 2017 00:13:04 +0200
+
 pac4cli (0.1ubuntu1) zesty; urgency=medium
 
   * Add virtualenv to dependencies

@@ -17,6 +17,9 @@
 %:
 	dh $@
 
+override_dh_auto_install:
+	$(MAKE) prefix=/usr DESTDIR=debian/pac4cli install
+
 override_dh_auto_test: # don't run the tests
 
 # dh_make generated override targets
