@@ -1,6 +1,7 @@
-PYTHON ?= python3
-TESTPORT ?= 23128
 SHELL = /bin/bash
+
+PYTHON ?= "$(shell which python3 )"
+TESTPORT ?= 23128
 
 prefix = /usr/local
 bindir := $(prefix)/bin
@@ -61,6 +62,8 @@ install-service:
 
 install-bin:
 	install -D -m 755 main.py $(DESTDIR)$(bindir)/pac4cli
+	@sed -i -e '1s+@PYTHON@'$(PYTHON)'@' $(DESTDIR)$(bindir)/pac4cli
+
 	install -D -m 644 pac4cli.py $(DESTDIR)$(pythonsitedir)/pac4cli.py
 
 install: install-bin install-service
