@@ -19,6 +19,9 @@ import signal
 import systemd.daemon
 import systemd.journal
 
+import configparser
+import platform
+
 parser= ArgumentParser(description="""
 Run a simple HTTP proxy on localhost that uses a wpad.dat to decide
 how to connect to the actual server.
@@ -69,16 +72,31 @@ def get_dhcp_domains():
         res.extend(domains)
     return res
 
+def get_config_wpad_url():
+    if args.config:
+        config_file = args.config;
+        config = configparser.SafeConfigParser();
+        config.read( config_file );
+        try:
+            return config.get( 'wpad', 'url' );
+        except configparser.NoOptionError:
+            return None;
+    else:
+        return None;
+
 @inlineCallbacks
 def get_possible_configuration_locations():
-    if args.config:
-        return [args.config]
-    else:
+    wpad_url = get_config_wpad_url();
+    if wpad_url is not None:
+        return [ wpad_url ];
+    elif 'Linux' == platform.system():
         domains = yield get_dhcp_domains()
         return [
             "http://wpad.{}/wpad.dat".format(domain)
             for domain in domains
-        ]
+        ];
+    else:
+        return [];
 
 @inlineCallbacks
 def updateWPAD(signum=None, stackframe=None):
