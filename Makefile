@@ -61,3 +61,5 @@ uninstall:
 clean:
 	rm -rf env
 	rm -rf pacparser
+	rm -rf __pycache__
+
