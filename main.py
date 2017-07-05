@@ -7,17 +7,17 @@ from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
 from twisted.web.client import Agent
 
-import txdbus.client
-# work around txdbus assuming python 2
-txdbus.client.basestring = str
+from wpad import WPAD
+import servicemanager
 
 from argparse import ArgumentParser
+
+import platform
 
 import pacparser
 import signal
 
-import systemd.daemon
-import systemd.journal
+import configparser
 
 parser= ArgumentParser(description="""
 Run a simple HTTP proxy on localhost that uses a wpad.dat to decide
@@ -44,41 +44,15 @@ def start_server(port, reactor):
     factory.protocol.requestFactory = WPADProxyRequest
 
     yield reactor.listenTCP(port, factory, interface="127.0.0.1")
-
-    systemd.daemon.notify(systemd.daemon.Notification.READY)
-
-
-@inlineCallbacks
-def get_dhcp_domains():
-    dbus = yield txdbus.client.connect(reactor, 'system')
-    nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
-                                   '/org/freedesktop/NetworkManager')
-    active_connection_paths = yield nm.callRemote('Get',
-            'org.freedesktop.NetworkManager', 'ActiveConnections')
-
-    res = []
-    for path in active_connection_paths:
-        conn = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
-                                          path)
-        config_path = yield conn.callRemote('Get',
-                    'org.freedesktop.NetworkManager.Connection.Active', 'Ip4Config')
-        config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
-                                            config_path)
-        domains = yield config.callRemote('Get',
-                'org.freedesktop.NetworkManager.IP4Config', 'Domains')
-        res.extend(domains)
-    return res
+    
+    servicemanager.notify_ready();
 
 @inlineCallbacks
 def get_possible_configuration_locations():
-    if args.config:
-        return [args.config]
-    else:
-        domains = yield get_dhcp_domains()
-        return [
-            "http://wpad.{}/wpad.dat".format(domain)
-            for domain in domains
-        ]
+    wpad = WPAD( reactor, args.config )
+    wpad.set_logger( logger )
+    urls = yield wpad.getUrls()
+    return urls
 
 @inlineCallbacks
 def updateWPAD(signum=None, stackframe=None):
@@ -133,7 +107,7 @@ if __name__ == "__main__":
     log_level_name = os.environ.get('LOG_LEVEL', args.loglevel)
     log_level = getattr(logging, log_level_name.upper(), logging.INFO)
     if args.systemd:
-        log_handler = systemd.journal.JournaldLogHandler()
+        log_handler = servicemanager.getLogHandler()
     else:
         log_handler = logging.StreamHandler()
     logger.setLevel(log_level)

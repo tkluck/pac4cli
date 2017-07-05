@@ -46,12 +46,15 @@ install-service: check-prev-proxies
 
 	install -D -m 755 trigger-pac4cli $(DESTDIR)/etc/NetworkManager/dispatcher.d/trigger-pac4cli
 	install -D -m 755 pac4cli.sh $(DESTDIR)/etc/profile.d/pac4cli-proxy.sh
+	install -D -m 644 pac4cli.config $(DESTDIR)/etc/pac4cli/pac4cli.config
 
 install-bin:
 	install -D -m 755 main.py $(DESTDIR)$(bindir)/pac4cli
 	@sed -i -e '1s+@PYTHON@+'$(PYTHON)'+' $(DESTDIR)$(bindir)/pac4cli
 
 	install -D -m 644 pac4cli.py $(DESTDIR)$(pythonsitedir)/pac4cli.py
+	install -D -m 644 wpad.py $(DESTDIR)$(pythonsitedir)/wpad.py
+	install -D -m 644 servicemanager.py $(DESTDIR)$(pythonsitedir)/servicemanager.py
 
 install: install-bin install-service
 
@@ -61,3 +64,5 @@ uninstall:
 clean:
 	rm -rf env
 	rm -rf pacparser
+	rm -rf __pycache__
+
