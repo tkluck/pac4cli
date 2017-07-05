@@ -17,7 +17,6 @@ import platform
 import pacparser
 import signal
 
-
 import configparser
 
 parser= ArgumentParser(description="""

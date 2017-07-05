@@ -2,6 +2,7 @@ import platform
 import configparser
 
 import logging
+import os
 
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
@@ -50,7 +51,7 @@ class WPAD:
 
     @inlineCallbacks
     def get_config_wpad_url(self, config_file):
-        if config_file:
+        if config_file and os.path.isfile(config_file):
             if self.logger:
                 self.logger.info("Found config file '%s'", config_file)
             config = configparser.SafeConfigParser()
