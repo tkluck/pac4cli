@@ -1,5 +1,3 @@
 twisted
 pyOpenSSL
 service_identity
-systemd
-txdbus

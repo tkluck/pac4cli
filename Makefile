@@ -1,4 +1,5 @@
 SHELL = /bin/bash
+OS = $(shell uname)
 
 PYTHON ?= "$(shell which python3 )"
 TESTPORT ?= 23128
@@ -18,6 +19,10 @@ pacparser:
 env: requirements.txt pacparser
 	virtualenv -p $(PYTHON) env
 	env/bin/pip install -r requirements.txt
+	if [[ "$(OS)x" == "Linuxx" ]]; then 	\
+		env/bin/pip install systemd &&		\
+		env/bin/pip install txdbus;			\
+	fi
 	PYTHON=`pwd`/env/bin/python make -C pacparser/src install-pymod
 
 run: env
