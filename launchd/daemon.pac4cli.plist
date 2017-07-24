@@ -5,12 +5,14 @@
 <dict>
 	<key>Label</key>
 	<string>nl.infty.pac4cli</string>
-	<key>Program</key>
-	<string>/usr/local/libexec/pac4cli</string>
 	<key>ProgramArguments</key>
 	<array>
+		<string>python3</string>
+		<string>/usr/local/libexec/pac4cli</string>
 		<string>-p</string>
 		<string>3128</string>
+		<string>-c</string>
+		<string>/Library/Preferences/.pac4cli/pac4cli.config</string>
 	</array>
 	<key>KeepAlive</key>
 	<true/>
@@ -23,18 +25,12 @@
 		<key>SockFamily</key>
 		<string>IPv4</string>
 	</dict>
-	<key>EnvironmentVariables</key>
-	<dict>
-		<key>http_proxy</key>
-		<string>localhost:3128</string>
-		<key>https_proxy</key>
-		<string>localhost:3128</string>
-		<key>HTTP_PROXY</key>
-		<string>localhost:3128</string>
-		<key>HTTPS_PROXY</key>
-		<string>localhost:3128</string>
-		<key>_JAVA_OPTIONS</key>
-		<string>-Dhttp.proxyHost=localhost -Dhttp.proxyPort=3128 -Dhttps.proxyHost=localhost -Dhttps.proxyPort=3128</string>
-	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+
+	<key>StandardOutPath</key>
+	<string>/var/log/pac4cli.log</string>
+	<key>StandardErrorPath</key>
+	<string>/var/log/pac4cli.log</string>
 </dict>
 </plist>
