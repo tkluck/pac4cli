@@ -8,7 +8,7 @@ Homepage: https://github.com/tkluck/pac4cli
 Vcs-Git: https://github.com/tkluck/pac4cli.git
 
 Package: pac4cli
-Architecture: any
+Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, python3, python3-pacparser, python3-twisted, python3-openssl, python3-service-identity, python3-txdbus, python3-systemd-cython
 Description: Proxy-auto-discovery for command line applications
  On many corporate networks, applications need proxy-auto-discovery to know
