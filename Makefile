@@ -55,6 +55,7 @@ install-bin:
 	install -D -m 644 pac4cli.py $(DESTDIR)$(pythonsitedir)/pac4cli.py
 	install -D -m 644 wpad.py $(DESTDIR)$(pythonsitedir)/wpad.py
 	install -D -m 644 servicemanager.py $(DESTDIR)$(pythonsitedir)/servicemanager.py
+	install -D -m 644 portforward.py $(DESTDIR)$(pythonsitedir)/portforward.py
 
 install: install-bin install-service
 
