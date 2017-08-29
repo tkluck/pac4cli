@@ -107,7 +107,7 @@ if __name__ == "__main__":
     log_level_name = os.environ.get('LOG_LEVEL', args.loglevel)
     log_level = getattr(logging, log_level_name.upper(), logging.INFO)
     if args.systemd:
-        log_handler = servicemanager.getLogHandler()
+        log_handler = servicemanager.LogHandler()
     else:
         log_handler = logging.StreamHandler()
     logger.setLevel(log_level)
