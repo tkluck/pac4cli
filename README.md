@@ -1,5 +1,7 @@
 ## Proxy-auto-discovery for command line applications (pac4cli)
 
+### Introduction
+
 On many corporate networks, applications need
 [proxy-auto-discovery](https://en.wikipedia.org/wiki/Web_Proxy_Auto-Discovery_Protocol)
 to know whether a certain URL is accessed either directly or through a web
@@ -20,3 +22,31 @@ System dependencies:
 Python library dependencies from PyPI can be installed through:
 
     sudo pip3 install -r requirements.txt
+
+### Installation instructions
+
+#### Ubuntu
+
+The latest builds are available through a PPA:
+
+    sudo add-apt-repository ppa:tkluck/pac4cli
+    sudo apt update
+    sudo apt install pac4cli
+
+You'll need to restart your shell for the new environment variables to take effect.
+
+#### Archlinux
+
+This package is available in AUR.
+
+#### Other (Mac, other linuxes)
+
+The dependencies can be installed through
+
+    pip3 install -r requirements.txt
+
+Then, use
+
+    make install
+
+
