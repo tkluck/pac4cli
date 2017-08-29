@@ -11,6 +11,6 @@ def notify_ready():
 
 def getLogHandler():
     if 'Linux' == platform.system():
-        return systemd.journal.JournaldLogHander()
+        return systemd.journal.JournaldLogHandler()
     else:
         return logging.NullHandler()
