@@ -25,6 +25,13 @@ pacparser:
 
 .PHONY: install-python-deps
 install-python-deps: requirements.txt pacparser
+	@if [[ "$(PYTHON)x" == "x" ]]; then \
+		echo "Couldnot find 'python3'" && \
+		echo "Please install:" && \
+		echo "- python3" && \
+		echo "- pip3" && \
+		exit 1; \
+	fi
 	pip3 install -r requirements.txt
 	PYTHON=$(PYTHON) make -C pacparser/src install-pymod
 
@@ -76,7 +83,7 @@ else
 	install -d $(DESTDIR)/Library/LaunchDaemons
 	install -m 644 launchd/daemon.pac4cli.plist $(DESTDIR)/Library/LaunchDaemons/pac4cli.plist
 
-	@sed -i -e 's@python@'"$(PYTHON)"'@g' $(DESTDIR)/Library/LaunchDaemons/pac4cli.plist
+	@sed -i -e 's@/usr/local/bin/python3@'"$(PYTHON)"'@g' $(DESTDIR)/Library/LaunchDaemons/pac4cli.plist
 
 	install -d $(DESTDIR)/Library/LaunchAgents
 	install -m 644 launchd/agent.pac4cli.plist $(DESTDIR)/Library/LaunchAgents/pac4cli.plist
