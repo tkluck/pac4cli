@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>nl.infty.pac4cli.proxy</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/launchctl</string>
+		<string>setenv</string>
+		<string>http_proxy</string>
+		<string>localhost:3128</string>
+		<string>https_proxy</string>
+		<string>localhost:3128</string>
+		<string>HTTP_PROXY</string>
+		<string>localhost:3128</string>
+		<string>HTTPS_PROXY</string>
+		<string>localhost:3128</string>
+		<string>_JAVA_OPTIONS</string>
+		<string>-Dhttp.proxyHost=localhost -Dhttp.proxyPort=3128 -Dhttps.proxyHost=localhost -Dhttps.proxyPort=3128</string>
+	</array>
+	<key>runAtLoad</key>
+	<true/>
+</dict>
+</plist>

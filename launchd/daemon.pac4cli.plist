@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>nl.infty.pac4cli</string>
+	
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/python3</string>
+		<string>/usr/local/libexec/pac4cli</string>
+		<string>-p</string>
+		<string>3128</string>
+		<string>-c</string>
+		<string>/Library/Preferences/.pac4cli/pac4cli.config</string>
+	</array>
+
+	<key>KeepAlive</key>
+	<true/>
+
+	<key>RunAtLoad</key>
+	<true/>
+
+	<key>StandardOutPath</key>
+	<string>/var/log/pac4cli.log</string>
+
+	<key>StandardErrorPath</key>
+	<string>/var/log/pac4cli.log</string>
+</dict>
+</plist>
