@@ -50,6 +50,35 @@ class WPAD:
         return res
 
     @inlineCallbacks
+    def get_wpad_url(self):
+        if 'Linux' != platform.system():
+            if self.logger:
+                self.logger.info("No NetworkManager available.") 
+            return res
+
+        dbus = yield txdbus.client.connect(self.reactor, 'system')
+        nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                       '/org/freedesktop/NetworkManager')
+        active_connection_paths = yield nm.callRemote('Get',
+                'org.freedesktop.NetworkManager', 'ActiveConnections')
+
+        for path in active_connection_paths:
+            conn = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                              path)
+            config_path = yield conn.callRemote('Get',
+                        'org.freedesktop.NetworkManager.Connection.Active', 'Dhcp4Config')
+
+            config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                                config_path)
+            options = yield config.callRemote('Get',
+                    'org.freedesktop.NetworkManager.DHCP4Config', 'Options')
+
+            if 'wpad' in options:
+                return options['wpad']
+
+        return None
+
+    @inlineCallbacks
     def get_config_wpad_url(self, config_file):
         if config_file and os.path.isfile(config_file):
             if self.logger:
@@ -75,10 +104,15 @@ class WPAD:
             return [ wpad_url ]
         else:
             if self.logger:
-                self.logger.info("Trying to get wpad url from NetworkManager...")
-            domains = yield self.get_dhcp_domains()
-            return [
-                "http://wpad.{}/wpad.dat".format(domain)
-                for domain in domains
-            ]
-
+                self.logger.info("Trying to get wpad url from NetworkManager DHCP...")
+            wpad_url = yield self.get_wpad_url()
+            if wpad_url is not None:
+                return [ wpad_url ]
+            else:
+                if self.logger:
+                    self.logger.info("Trying to get wpad url from NetworkManager domains...")
+                domains = yield self.get_dhcp_domains()
+                return [
+                    "http://wpad.{}/wpad.dat".format(domain)
+                    for domain in domains
+                ]
