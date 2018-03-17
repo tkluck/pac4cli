@@ -1,5 +1,7 @@
 ## Proxy-auto-discovery for command line applications (pac4cli)
 
+![CircleCI](https://img.shields.io/circleci/project/github/tkluck/pac4cli.svg)
+
 ### Introduction
 
 On many corporate networks, applications need
