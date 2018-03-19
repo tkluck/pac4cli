@@ -54,7 +54,7 @@ class WPAD:
         if 'Linux' != platform.system():
             if self.logger:
                 self.logger.info("No NetworkManager available.") 
-            return res
+            return None
 
         dbus = yield txdbus.client.connect(self.reactor, 'system')
         nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
