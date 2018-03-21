@@ -21,7 +21,7 @@ from time import sleep
 import plumbum
 from plumbum import FG, BG
 
-from plumbum.cmd import curl, gdbus
+from plumbum.cmd import curl
 python = plumbum.local["env/bin/python"]
 pac4cli = python["main.py"]
 
