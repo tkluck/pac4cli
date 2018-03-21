@@ -1,8 +1,15 @@
 function FindProxyForURL(url, host) {
     if (shExpMatch(host, "*.booking.com"))
     {
-        return "DIRECT";
+        /* fake proxy no 1 */
+        return "PROXY localhost:23130";
     }
 
-    return "PROXY localhost:23128";
+    if (shExpMatch(host, "*.google.com"))
+    {
+        /* fake proxy no 2 */
+        return "PROXY localhost:23131";
+    }
+
+    return "DIRECT";
 }

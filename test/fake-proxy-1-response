@@ -1,0 +1,8 @@
+HTTP/1.0 200 OK
+Server: SimpleHTTP/0.6 Python/3.6.4+
+Date: Wed, 21 Mar 2018 19:27:06 GMT
+Content-type: text/plain
+Content-Length: 27
+Last-Modified: Wed, 21 Mar 2018 00:13:07 GMT
+
+Hello from fake proxy no 1!

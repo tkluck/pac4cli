@@ -21,9 +21,13 @@ from time import sleep
 import plumbum
 from plumbum import FG, BG
 
-from plumbum.cmd import curl
-python = plumbum.local["env/bin/python"]
-pac4cli = python["main.py"]
+from plumbum.cmd import curl, nc
+
+python     = plumbum.local["env/bin/python"]
+serve_once = nc["-C", "-l"]
+pac4cli    = python["main.py"]
+
+testdir = plumbum.local.path(os.path.dirname(os.path.abspath(__file__)))
 
 from dbusmock.templates.networkmanager import DeviceState
 from dbusmock.templates.networkmanager import NM80211ApSecurityFlags
@@ -104,7 +108,7 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
             [],
         )
         conn_obj = dbus.Interface(
-            self.dbus_con.get_object("org.freedesktop.NetworkManager", con1),
+            self.dbus_con.get_object("org.freedesktop.NetworkManager", active_con1),
             dbusmock.MOCK_IFACE,
         )
         conn_obj.AddProperty(
@@ -113,23 +117,40 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
             '/org/freedesktop/NetworkManager/DHCP4Config/1',
         )
 
+        # for inspecting the resulting dbus objects
+        # with plumbum.local.env(DBUS_SYSTEM_BUS_ADDRESS=os.environ['DBUS_SYSTEM_BUS_ADDRESS']):
+        #    gdbus["introspect", "--system", "--recurse", "-d", "org.freedesktop.NetworkManager", "-o", "/"] & FG
+
         # server for wpad.dat
-        with plumbum.local.cwd("test/wpadserver"):
-            static_server = python["-m", "http.server", "-p", "8080"] & BG
-        # mock upstream proxy
-        proxy1 = pac4cli["-F", "DIRECT", "-p", "23128"] & BG
+        with plumbum.local.cwd(testdir / "wpadserver"):
+            static_server = python["-m", "http.server", 8080] & BG
+
+        # mock upstream proxies
+        fake_proxy_1 = (serve_once[23130] < testdir / "fake-proxy-1-response") & BG
+        fake_proxy_2 = (serve_once[23131] < testdir / "fake-proxy-2-response") & BG
+
         # proxy getting its config from DHCP
-        proxy2 = pac4cli["-p", "23129"] & BG
+        with plumbum.local.env(DBUS_SYSTEM_BUS_ADDRESS=os.environ['DBUS_SYSTEM_BUS_ADDRESS']):
+            proxy_to_test = pac4cli["-p", "23129"] & BG(stdout=sys.stdout, stderr=sys.stderr)
 
         sleep(3)
         try:
             with plumbum.local.env(http_proxy="localhost:23129"):
-                curl("http://www.booking.com")
-                curl("http://www.google.com")
-                self.assertTrue(True)
+                self.assertEqual(
+                    curl("http://www.booking.com"),
+                    # when changing this string, don't forget to change
+                    # the Content-Length header as well.
+                    "Hello from fake proxy no 1!",
+                )
+                self.assertEqual(
+                    curl("http://www.google.com"),
+                    # (same)
+                    "Hello from fake proxy no 2!",
+                )
         finally:
-            proxy2.proc.kill()
-            proxy1.proc.kill()
+            proxy_to_test.proc.kill()
+            fake_proxy_2.proc.kill()
+            fake_proxy_1.proc.kill()
             static_server.proc.kill()
 
 
