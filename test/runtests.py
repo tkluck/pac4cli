@@ -39,7 +39,6 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
     @classmethod
     def setUpClass(klass):
         klass.start_system_bus()
-        os.environ['DBUS_SYSTEM_BUS_ADDRESS']=os.environ['DBUS_SESSION_BUS_ADDRESS']
         klass.dbus_con = klass.get_dbus(True)
         os.environ['G_DEBUG'] = 'fatal-warnings,fatal-criticals'
 
