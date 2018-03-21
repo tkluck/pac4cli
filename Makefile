@@ -51,7 +51,7 @@ run: env
 
 .PHONY: check
 check: env
-	./testrun.sh $(TESTPORT)
+	env/bin/python test/runtests.py
 
 .PHONY: check-prev-proxies
 check-prev-proxies:

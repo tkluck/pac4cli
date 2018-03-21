@@ -2,3 +2,7 @@ incremental
 twisted
 pyOpenSSL
 service_identity
+dbus-python
+pygobject
+python-dbusmock
+plumbum
