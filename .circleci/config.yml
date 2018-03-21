@@ -2,7 +2,7 @@ version: 2
 jobs:
   test:
     docker:
-      - image: circleci/python:3.6
+      - image: circleci/python:3.6-stretch
     steps:
       - checkout
       - run: sudo apt-get install libsystemd-dev libdbus-glib-1-dev libgirepository1.0-dev
