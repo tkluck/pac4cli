@@ -21,10 +21,10 @@ from time import sleep
 import plumbum
 from plumbum import FG, BG
 
-from plumbum.cmd import curl, nc
+from plumbum.cmd import curl
 
 python     = plumbum.local["env/bin/python"]
-serve_once = nc["-C", "-l"]
+serve_once = plumbum.local["nc.openbsd"]["-C", "-l", "-p"]
 pac4cli    = python["main.py"]
 
 testdir = plumbum.local.path(os.path.dirname(os.path.abspath(__file__)))
