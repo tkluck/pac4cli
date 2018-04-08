@@ -1,15 +1,59 @@
 extern crate tokio;
+extern crate argparse;
 
 use std::io::prelude::*;
 use std::fs::File;
 
+use argparse::{ArgumentParser, StoreTrue, Store};
 use tokio::io;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 
 mod pacparser;
 
+struct Options {
+    config: String,
+    port: i32,
+    force_proxy: String,
+    loglevel: String,
+    systemd: bool,
+}
+
 fn main() {
+    let mut options = Options {
+        config:      String::new(),
+        port:        3128,
+        force_proxy: String::new(),
+        loglevel:    String::from("DEBUG"),
+        systemd:     false,
+    };
+
+    {  // this block limits scope of borrows by ap.refer() method
+        let mut ap = ArgumentParser::new();
+        ap.set_description("
+        Run a simple HTTP proxy on localhost that uses a wpad.dat to decide
+        how to connect to the actual server.
+        ");
+        ap.refer(&mut options.config)
+            .add_option(&["-c", "--config"], Store,
+            "Path to configuration file [not implemented]");
+        ap.refer(&mut options.port)
+            .metavar("PORT")
+            .add_option(&["-p","--port"], Store,
+            "Port to listen on");
+        ap.refer(&mut options.force_proxy)
+            .metavar("PROXY STRING")
+            .add_option(&["-F", "--force-proxy"], Store,
+            "Forward traffic according to PROXY STRING, e.g. DIRECT or PROXY <proxy>");
+        ap.refer(&mut options.loglevel)
+            .metavar("LEVEL")
+            .add_option(&["--loglevel"], Store,
+            "One of DEBUG/INFO/WARNING/ERROR");
+        ap.refer(&mut options.systemd)
+            .add_option(&["--systemd"], StoreTrue,
+            "Assume running under systemd (for logging and readiness notification) [not implemented]");
+        ap.parse_args_or_exit();
+    }
     pacparser::init().expect("Failed to initialize pacparser");
 
     let mut wpadfile = File::open("test/wpadserver/wpad.dat").expect("File not found");
