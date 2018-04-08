@@ -2,3 +2,11 @@
 __pycache__
 env/
 pacparser/
+
+/target/
+**/*.rs.bk
+Cargo.lock
+
+/target/
+**/*.rs.bk
+Cargo.lock

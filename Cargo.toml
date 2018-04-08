@@ -1,0 +1,8 @@
+[package]
+name = "pac4cli"
+version = "0.1.0"
+authors = ["Timo Kluck <tkluck@infty.nl>"]
+
+[dependencies]
+tokio = "0.1"
+libc = "0.2.0"
