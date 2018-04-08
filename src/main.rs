@@ -4,7 +4,7 @@ extern crate argparse;
 use std::io::prelude::*;
 use std::fs::File;
 
-use argparse::{ArgumentParser, StoreTrue, Store};
+use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
 use tokio::io;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
@@ -12,18 +12,18 @@ use tokio::prelude::*;
 mod pacparser;
 
 struct Options {
-    config: String,
+    config: Option<String>,
     port: i32,
-    force_proxy: String,
+    force_proxy: Option<String>,
     loglevel: String,
     systemd: bool,
 }
 
 fn main() {
     let mut options = Options {
-        config:      String::new(),
+        config:      None,
         port:        3128,
-        force_proxy: String::new(),
+        force_proxy: None,
         loglevel:    String::from("DEBUG"),
         systemd:     false,
     };
@@ -35,7 +35,7 @@ fn main() {
         how to connect to the actual server.
         ");
         ap.refer(&mut options.config)
-            .add_option(&["-c", "--config"], Store,
+            .add_option(&["-c", "--config"], StoreOption,
             "Path to configuration file [not implemented]");
         ap.refer(&mut options.port)
             .metavar("PORT")
@@ -43,7 +43,7 @@ fn main() {
             "Port to listen on");
         ap.refer(&mut options.force_proxy)
             .metavar("PROXY STRING")
-            .add_option(&["-F", "--force-proxy"], Store,
+            .add_option(&["-F", "--force-proxy"], StoreOption,
             "Forward traffic according to PROXY STRING, e.g. DIRECT or PROXY <proxy>");
         ap.refer(&mut options.loglevel)
             .metavar("LEVEL")
