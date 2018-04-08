@@ -91,4 +91,6 @@ fn main() {
     });
     println!("server running on localhost:6142");
     tokio::run(server);
+
+    pacparser::cleanup();
 }
