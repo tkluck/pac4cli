@@ -18,7 +18,8 @@ enum State {
     WritingUri {pos: usize},
     WritingSpace2 {},
     WritingHTTPVersion {pos: usize},
-    //WritingHeaders {header: usize},
+    WritingHeader {header: usize, pos: usize},
+    WritingTerminator {pos: usize},
     Done,
 }
 
@@ -58,7 +59,22 @@ impl<IO: io::AsyncWrite> Future for WritePreamble<IO> {
                             *pos += n;
                         }
                     }
-                    // TODO
+                    State::WritingHeader { header, ref mut pos } => {
+                        while *pos < 2 {
+                            let n = try_ready!(self.io.poll_write(&b"\r\n"[*pos..]));
+                            *pos += n;
+                        }
+                        while header < preamble.headers.len() && *pos - 2 < preamble.http_version.len() {
+                            let n = try_ready!(self.io.poll_write(preamble.headers[header][*pos-2..].as_bytes()));
+                            *pos += n;
+                        }
+                    }
+                    State::WritingTerminator { ref mut pos } => {
+                        while *pos < 4 {
+                            let n = try_ready!(self.io.poll_write(&b"\r\n\r\n"[*pos..]));
+                            *pos += n;
+                        }
+                    }
                     State::Done => (),
                 }
             }
@@ -67,7 +83,20 @@ impl<IO: io::AsyncWrite> Future for WritePreamble<IO> {
                 State::WritingSpace1 { }    => State::WritingUri { pos: 0 },
                 State::WritingUri { .. }    => State::WritingSpace2 { },
                 State::WritingSpace2 { }    => State::WritingHTTPVersion { pos: 0 },
-                State::WritingHTTPVersion { .. } => State::Done,
+                State::WritingHTTPVersion { .. } => State::WritingHeader { header: 0, pos: 0 },
+                State::WritingHeader { header, .. } => {
+                    if let Some(ref preamble) = self.preamble {
+                        let new_header = header + 1;
+                        if new_header < preamble.headers.len() {
+                            State::WritingHeader { header: new_header, pos: 0 }
+                        } else {
+                            State::WritingTerminator { pos: 0 }
+                        }
+                    } else {
+                        panic!("Polling resolved future");
+                    }
+                },
+                State::WritingTerminator { ..} => State::Done,
                 State::Done                 => return Ok(Async::Ready(mem::replace(&mut self.preamble, None).unwrap())),
             };
         }
