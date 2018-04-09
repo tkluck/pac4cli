@@ -7,4 +7,5 @@ authors = ["Timo Kluck <tkluck@infty.nl>"]
 tokio = "0.1"
 libc = "0.2.0"
 argparse = "0.2.1"
-futures = "0.2.0"
+futures = "0.1.17"
+uri = "0.3.0"

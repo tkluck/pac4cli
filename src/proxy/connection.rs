@@ -1,28 +1,23 @@
-extern crate tokio;
-use self::tokio::io;
-use self::tokio::prelude::*;
+use tokio::io;
+use tokio::prelude::*;
 
 use std::str;
+use std::mem;
+use std::ops::Range;
+
+use super::protocol::Preamble;
 
 #[derive(Debug)]
 pub struct Incoming<IO : AsyncRead> {
     io: IO,
     buffer: Vec<u8>,
     position: usize,
-    streamable: bool,
 }
 
 #[derive(Debug)]
 pub struct IncomingResult {
-    // I spent ample time trying to get &'a [u8] to work for all of these,
-    // indexing into the buffer that's held by Incoming. I couldn't get
-    // that to compile.
-    method: Vec<u8>,
-    uri: Vec<u8>,
-    http_version: Vec<u8>,
-    headers: Vec<Vec<u8>>,
-    buffer: Vec<u8>,
-    //io: IO,
+    pub preamble: Preamble,
+    pub buffered: Vec<u8>,
 }
 
 impl<IO: AsyncRead> Incoming<IO> {
@@ -31,7 +26,6 @@ impl<IO: AsyncRead> Incoming<IO> {
             io,
             buffer: vec![0; 1024],
             position: 0,
-            streamable: false,
         }
     }
 }
@@ -42,8 +36,8 @@ fn findslice(needle: &[u8], haystack: &[u8]) -> Option<usize> {
     if n > k {
         return None;
     }
-    for ix in 0..haystack.len() - n + 1 {
-        if &haystack[ix..ix+n] == needle {
+    for (ix,window) in haystack.windows(n).enumerate() {
+        if window == needle {
             return Some(ix);
         }
     }
@@ -55,35 +49,44 @@ impl<IO: AsyncRead> Future for Incoming<IO> {
     type Error = io::Error;
 
     fn poll(&mut self) -> Result<Async<Self::Item>, Self::Error> {
-        match self.io.poll_read(&mut self.buffer[self.position..])? {
-            Async::Ready(n) => {
-                let prev_n = self.position;
-                self.position += n;
-                match findslice(b"\r\n\r\n", &self.buffer[..self.position]) {
-                    Some(ix) => {
-                        let preamble_end = ix;
-                        let preamble = str::from_utf8(&self.buffer[..preamble_end]).expect("invalid data received");
-                        let mut lines = preamble.lines();
-                        let first_line = lines.next().unwrap();
+        loop {
+            match self.io.poll_read(&mut self.buffer[self.position..]) {
+                Ok(Async::Ready(n)) => {
+                    self.position += n;
+                    match findslice(b"\r\n\r\n", &self.buffer[..self.position]) {
+                        Some(preamble_end) => {
+                            let preamble = String::from_utf8(self.buffer[..preamble_end].to_vec()).expect("invalid data received");
+                            let mut lines = preamble.lines();
+                            let first_line = lines.next().unwrap();
 
-                        let mut items = first_line.split(" ");
-                        let method = items.next().unwrap().as_bytes().to_vec();
-                        let uri = items.next().unwrap().as_bytes().to_vec();
-                        let http_version = items.next().unwrap().as_bytes().to_vec();
+                            let mut items = first_line.split(" ");
+                            let method = String::from(items.next().unwrap());
+                            let uri = String::from(items.next().unwrap());
+                            let http_version = String::from(items.next().unwrap());
 
-                        Ok(Async::Ready(IncomingResult {
-                            method,
-                            uri,
-                            http_version,
-                            headers: lines.map(|l| { l.as_bytes().to_vec() }).collect(),
-                            buffer: self.buffer[preamble_end+4..self.position].to_vec(),
-                            //io: self.io,
-                        }))
+                            return Ok(Async::Ready(IncomingResult {
+                                preamble: Preamble {
+                                    method,
+                                    uri,
+                                    http_version,
+                                    headers: Vec::new(),
+                                },
+                                buffered: self.buffer[preamble_end+4..self.position].to_vec(),
+                            }))
+                        }
+                        None => return Ok(Async::NotReady),
                     }
-                    None => Ok(Async::NotReady)
                 }
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Err(err) => return Err(err),
             }
-            Async::NotReady => Ok(Async::NotReady),
         }
     }
+}
+
+pub fn two_way_pipe<T,S>(t:T, s:S) -> future::Join<io::Copy<T,S>,io::Copy<S,T>>
+where
+    T: AsyncRead+AsyncWrite+Copy,
+    S: AsyncRead+AsyncWrite+Copy {
+    return io::copy(t,s).join(io::copy(s,t));
 }

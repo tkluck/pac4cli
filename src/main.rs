@@ -1,4 +1,8 @@
 extern crate argparse;
+extern crate tokio;
+#[macro_use]
+extern crate futures;
+extern crate uri;
 
 use std::io::prelude::*;
 use std::fs::File;

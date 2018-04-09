@@ -1,11 +1,15 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 
-extern crate tokio;
-use self::tokio::io;
-use self::tokio::net::TcpListener;
-use self::tokio::prelude::*;
+use tokio;
+use tokio::io;
+use tokio::net::TcpListener;
+use tokio::net::TcpStream;
+use tokio::prelude::*;
+
+use uri::Uri;
 
 mod connection;
+mod protocol;
 
 struct Pac4CliProxy;
 
@@ -24,8 +28,22 @@ pub fn run_server(port: u16) {
             .and_then(|incoming_result| {
                 //connection_handler = choose_handler(request_line);
                 //connection_handler.handle(request_line, headers, io);
-                println!("{:?}", incoming_result);
-                Ok(())
+                let uri =  Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
+                let uri_to_send = format!("{}{}", uri.path.expect("missing path"), uri.query.unwrap_or(String::new()));
+                let space = b" ";
+                //let to_write = [incoming_result.method(), space, uri_to_send, space, incoming_result.http_version(), b"\r\n\r\n"];
+
+                let mut remote_addr = (uri.host.unwrap().as_str(), uri.port.unwrap_or(80)).to_socket_addrs().expect("unparseable host");
+
+                let data_exchange = TcpStream::connect(&remote_addr.next().unwrap())
+                    .and_then(move |upstream_connection| {
+                        incoming_result.preamble.write(upstream_connection)
+                    })
+                    .and_then(|_| {
+                        Ok(())
+                    });
+
+                data_exchange
             })
             .map_err(|err| {
                 println!("connection error = {:?}", err);
