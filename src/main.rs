@@ -1,19 +1,16 @@
-extern crate tokio;
 extern crate argparse;
 
 use std::io::prelude::*;
 use std::fs::File;
 
 use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
-use tokio::io;
-use tokio::net::TcpListener;
-use tokio::prelude::*;
 
 mod pacparser;
+mod proxy;
 
 struct Options {
     config: Option<String>,
-    port: i32,
+    port: u16,
     force_proxy: Option<String>,
     loglevel: String,
     systemd: bool,
@@ -65,32 +62,7 @@ fn main() {
     let proxystr = pacparser::find_proxy("http://www.google.com", "www.google.com");
     println!("proxystr: {}", proxystr);
 
-    let addr = "127.0.0.1:6142".parse().unwrap();
-    let listener = TcpListener::bind(&addr).unwrap();
-
-    let server = listener.incoming().for_each(|socket| {
-        println!("accepted socket; addr={:?}", socket.peer_addr().unwrap());
-
-        let connection = io::write_all(socket, "hello world\n")
-            .then(|res| {
-                println!("wrote message; success={:?}", res.is_ok());
-                Ok(())
-        });
-
-        // Spawn a new task that processes the socket:
-        tokio::spawn(connection);
-
-        Ok(())
-    })
-    .map_err(|err| {
-        // All tasks must have an `Error` type of `()`. This forces error
-        // handling and helps avoid silencing failures.
-        //
-        // In our example, we are only going to log the error to STDOUT.
-        println!("accept error = {:?}", err);
-    });
-    println!("server running on localhost:6142");
-    tokio::run(server);
+    proxy::run_server(options.port);
 
     pacparser::cleanup();
 }
