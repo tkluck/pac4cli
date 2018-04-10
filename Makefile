@@ -50,8 +50,8 @@ run: env
 	env/bin/python main.py -F DIRECT -p $(TESTPORT)
 
 .PHONY: check
-check: env
-	env/bin/python test/runtests.py
+check:
+	LD_LIBRARY_PATH="`pwd`/pacparser/src" python3 test/runtests.py
 
 .PHONY: check-prev-proxies
 check-prev-proxies:
