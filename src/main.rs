@@ -69,7 +69,9 @@ fn main() {
 
     pacparser::parse_pac_string(wpadtext).expect("Couldn't parse wpad file");
 
-    proxy::run_server(options.port, options.force_proxy);
+    let server = proxy::run_server(options.port, options.force_proxy);
+
+    tokio::run(server);
 
     pacparser::cleanup();
 }
