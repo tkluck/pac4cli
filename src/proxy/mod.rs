@@ -45,13 +45,13 @@ pub fn run_server(port: u16) {
 
                 let upstream_addr : SocketAddr;
                 let preamble_for_upstream : Option<Preamble>;
-                let my_response_for_downstream : Option<Vec<u8>>;
+                let my_response_for_downstream : Option<&'static [u8]>;
 
                 match find_proxy_suggestions(url, host).first() {
                     Some(&ProxySuggestion::Direct) => {
                         if incoming_result.preamble.method == "CONNECT" {
                             preamble_for_upstream = None;
-                            my_response_for_downstream = Some(b"HTTP/1.1 200 OK\r\n\r\n".to_vec());
+                            my_response_for_downstream = Some(b"HTTP/1.1 200 OK\r\n\r\n");
                         } else {
                             let uri =  Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
                             let mut p = incoming_result.preamble.clone();
