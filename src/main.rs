@@ -65,9 +65,6 @@ fn main() {
 
     pacparser::parse_pac_string(wpadtext).expect("Couldn't parse wpad file");
 
-    let proxystr = pacparser::find_proxy("http://www.google.com", "www.google.com");
-    println!("proxystr: {}", proxystr);
-
     proxy::run_server(options.port);
 
     pacparser::cleanup();

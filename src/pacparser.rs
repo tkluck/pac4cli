@@ -24,7 +24,7 @@ pub fn parse_pac_string(pacstring: String) -> Result<(),()> {
     }
 }
 
-pub fn find_proxy(url: &str, host: &str) -> String {
+fn find_proxy(url: &str, host: &str) -> String {
     unsafe {
         let curl = CString::new(url).unwrap();
         let chost = CString::new(host).unwrap();
@@ -32,6 +32,25 @@ pub fn find_proxy(url: &str, host: &str) -> String {
         return String::from( cres.to_str().unwrap() );
     }
 }
+
+pub enum ProxySuggestion {
+    Direct,
+    Proxy ( String ),
+}
+
+pub fn find_proxy_suggestions(url: &str, host: &str) -> Vec<ProxySuggestion> {
+    return find_proxy(&url, &host).split(";").map(|s| {
+        if s == "DIRECT" {
+            ProxySuggestion::Direct
+        } else if s.starts_with("PROXY ") {
+            ProxySuggestion::Proxy(String::from(&s[6..]))
+        } else {
+            // TODO: warning
+            ProxySuggestion::Direct
+        }
+    }).collect();
+}
+
 pub fn cleanup() {
     unsafe {
         pacparser_cleanup();

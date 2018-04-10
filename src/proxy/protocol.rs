@@ -1,9 +1,8 @@
 use std::mem;
 use tokio::io;
 use tokio::prelude::*;
-use uri::Uri;
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Preamble {
     pub method: String,
     pub uri: String,

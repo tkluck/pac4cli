@@ -1,10 +1,10 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 
 use tokio;
-use tokio::io;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
+use futures::future::Either;
 
 use uri::Uri;
 
@@ -12,8 +12,8 @@ mod connection;
 mod protocol;
 
 use self::connection::two_way_pipe;
-
-struct Pac4CliProxy;
+use self::protocol::Preamble;
+use pacparser::{ProxySuggestion,find_proxy_suggestions};
 
 //fn choose_handler(request_line: connection::RequestLine) -> ConnectionHandler {
 //
@@ -28,17 +28,39 @@ pub fn run_server(port: u16) {
 
         let task = connection::Incoming::new(socket)
             .and_then(|(incoming_result,socket)| {
-                //connection_handler = choose_handler(request_line);
-                //connection_handler.handle(request_line, headers, io);
                 let uri =  Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
+                let host = uri.host.expect("No host in URI; aborting");
 
-                let mut remote_addr = (uri.host.unwrap().as_str(), uri.port.unwrap_or(80)).to_socket_addrs().expect("unparseable host");
+                let preamble_for_upstream : Option<Preamble>;
+                let remote_addr : SocketAddr;
 
-                let data_exchange = TcpStream::connect(&remote_addr.next().unwrap())
+                match find_proxy_suggestions(&incoming_result.preamble.uri, &host).first() {
+                    Some(&ProxySuggestion::Direct) => {
+                        if incoming_result.preamble.method == "CONNECT" {
+                            preamble_for_upstream = None;
+                        } else {
+                            let mut p = incoming_result.preamble.clone();
+                            p.uri = format!("{}{}", uri.path.unwrap_or(String::from("/")), uri.query.unwrap_or(String::from("")));
+                            preamble_for_upstream = Some(p);
+                        }
+                        remote_addr = (host.as_str(), uri.port.unwrap_or(80)).to_socket_addrs().expect("unparseable host").next().unwrap();
+                    }
+                    Some(&ProxySuggestion::Proxy(..)) => panic!("Not implemented yet"),
+                    None => panic!("No proxy suggestions?"),
+                }
+
+                let data_exchange = TcpStream::connect(&remote_addr)
                     .and_then(move |upstream_connection| {
-                        incoming_result.preamble.write(upstream_connection)
+                        if let Some(preamble) = preamble_for_upstream {
+                            Either::A(preamble.write(upstream_connection)
+                                    .map(|(_preamble, upstream_connection)| {
+                                        upstream_connection
+                                    }))
+                        } else {
+                            Either::B(future::ok(upstream_connection))
+                        }
                     })
-                    .and_then(move |(preamble, upstream_connection)| {
+                    .and_then(move |upstream_connection| {
                         two_way_pipe(upstream_connection, socket)
                     })
                     .and_then(|_| {
