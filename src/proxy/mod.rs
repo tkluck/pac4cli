@@ -61,7 +61,11 @@ pub fn run_server(port: u16) {
                         }
                         upstream_addr = (host.as_str(), port).to_socket_addrs().expect("unparseable host").next().unwrap();
                     }
-                    Some(&ProxySuggestion::Proxy(..)) => panic!("Not implemented yet"),
+                    Some(&ProxySuggestion::Proxy{ref host, ref port}) => {
+                        preamble_for_upstream = Some(incoming_result.preamble);
+                        my_response_for_downstream = None;
+                        upstream_addr = (host.as_str(), port.unwrap_or(3128)).to_socket_addrs().expect("unparseable host").next().unwrap();
+                    }
                     None => panic!("No proxy suggestions?"),
                 }
                 println!("Host: {}, upstream addr: {:?}", host, upstream_addr);

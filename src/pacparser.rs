@@ -35,7 +35,10 @@ fn find_proxy(url: &str, host: &str) -> String {
 
 pub enum ProxySuggestion {
     Direct,
-    Proxy ( String ),
+    Proxy {
+        host: String,
+        port: Option<u16>,
+    }
 }
 
 pub fn find_proxy_suggestions(url: &str, host: &str) -> Vec<ProxySuggestion> {
@@ -43,7 +46,15 @@ pub fn find_proxy_suggestions(url: &str, host: &str) -> Vec<ProxySuggestion> {
         if s == "DIRECT" {
             ProxySuggestion::Direct
         } else if s.starts_with("PROXY ") {
-            ProxySuggestion::Proxy(String::from(&s[6..]))
+            let mut parts = s[6..].split(":");
+            let host = String::from(parts.next().unwrap());
+            let port = match parts.next() {
+                None => None,
+                Some(p) => {
+                    Some(p.parse::<u16>().expect("invalid port"))
+                }
+            };
+            ProxySuggestion::Proxy { host, port }
         } else {
             // TODO: warning
             ProxySuggestion::Direct
