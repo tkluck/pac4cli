@@ -27,55 +27,57 @@ enum State {
 pub struct WritePreamble<IO: io::AsyncWrite> {
     preamble: Option<Preamble>,
     state: State,
-    io: IO,
+    io: Option<IO>,
 }
 
 impl<IO: io::AsyncWrite> Future for WritePreamble<IO> {
-    type Item = Preamble;
+    type Item = (Preamble,IO);
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         loop {
             if let Some(ref mut preamble) = self.preamble {
-                match self.state {
-                    State::WritingMethod { ref mut pos } => {
-                        while *pos < preamble.method.len() {
-                            let n = try_ready!(self.io.poll_write(preamble.method[*pos..].as_bytes()));
-                            *pos += n;
+                if let Some(ref mut io) = self.io {
+                    match self.state {
+                        State::WritingMethod { ref mut pos } => {
+                            while *pos < preamble.method.len() {
+                                let n = try_ready!(io.poll_write(preamble.method[*pos..].as_bytes()));
+                                *pos += n;
+                            }
                         }
-                    }
-                    State::WritingSpace1 { } | State::WritingSpace2 { } => {
-                        try_ready!(self.io.poll_write(b" "));
-                    }
-                    State::WritingUri { ref mut pos } => {
-                        while *pos < preamble.uri.len() {
-                            let n = try_ready!(self.io.poll_write(preamble.uri[*pos..].as_bytes()));
-                            *pos += n;
+                        State::WritingSpace1 { } | State::WritingSpace2 { } => {
+                            try_ready!(io.poll_write(b" "));
                         }
-                    }
-                    State::WritingHTTPVersion { ref mut pos } => {
-                        while *pos < preamble.http_version.len() {
-                            let n = try_ready!(self.io.poll_write(preamble.http_version[*pos..].as_bytes()));
-                            *pos += n;
+                        State::WritingUri { ref mut pos } => {
+                            while *pos < preamble.uri.len() {
+                                let n = try_ready!(io.poll_write(preamble.uri[*pos..].as_bytes()));
+                                *pos += n;
+                            }
                         }
-                    }
-                    State::WritingHeader { header, ref mut pos } => {
-                        while *pos < 2 {
-                            let n = try_ready!(self.io.poll_write(&b"\r\n"[*pos..]));
-                            *pos += n;
+                        State::WritingHTTPVersion { ref mut pos } => {
+                            while *pos < preamble.http_version.len() {
+                                let n = try_ready!(io.poll_write(preamble.http_version[*pos..].as_bytes()));
+                                *pos += n;
+                            }
                         }
-                        while header < preamble.headers.len() && *pos - 2 < preamble.http_version.len() {
-                            let n = try_ready!(self.io.poll_write(preamble.headers[header][*pos-2..].as_bytes()));
-                            *pos += n;
+                        State::WritingHeader { header, ref mut pos } => {
+                            while *pos < 2 {
+                                let n = try_ready!(io.poll_write(&b"\r\n"[*pos..]));
+                                *pos += n;
+                            }
+                            while header < preamble.headers.len() && *pos - 2 < preamble.http_version.len() {
+                                let n = try_ready!(io.poll_write(preamble.headers[header][*pos-2..].as_bytes()));
+                                *pos += n;
+                            }
                         }
-                    }
-                    State::WritingTerminator { ref mut pos } => {
-                        while *pos < 4 {
-                            let n = try_ready!(self.io.poll_write(&b"\r\n\r\n"[*pos..]));
-                            *pos += n;
+                        State::WritingTerminator { ref mut pos } => {
+                            while *pos < 4 {
+                                let n = try_ready!(io.poll_write(&b"\r\n\r\n"[*pos..]));
+                                *pos += n;
+                            }
                         }
+                        State::Done => (),
                     }
-                    State::Done => (),
                 }
             }
             self.state = match self.state {
@@ -97,7 +99,7 @@ impl<IO: io::AsyncWrite> Future for WritePreamble<IO> {
                     }
                 },
                 State::WritingTerminator { ..} => State::Done,
-                State::Done                 => return Ok(Async::Ready(mem::replace(&mut self.preamble, None).unwrap())),
+                State::Done                 => return Ok(Async::Ready((mem::replace(&mut self.preamble, None).unwrap(), mem::replace(&mut self.io, None).unwrap()))),
             };
         }
     }
@@ -105,6 +107,6 @@ impl<IO: io::AsyncWrite> Future for WritePreamble<IO> {
 
 impl Preamble {
     pub fn write<IO: io::AsyncWrite>(self, io: IO) -> WritePreamble<IO> {
-        WritePreamble { preamble: Some(self), state: State::WritingMethod { pos: 0 }, io }
+        WritePreamble { preamble: Some(self), state: State::WritingMethod { pos: 0 }, io: Some(io) }
     }
 }
