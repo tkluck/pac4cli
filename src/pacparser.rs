@@ -2,6 +2,8 @@ extern crate libc;
 use self::libc::c_char;
 use std::ffi::CString;
 use std::ffi::CStr;
+use std::str::FromStr;
+use std::string::ParseError;
 
 #[link(name="pacparser")]
 extern "C" {
@@ -33,6 +35,7 @@ fn find_proxy(url: &str, host: &str) -> String {
     }
 }
 
+#[derive(Clone)]
 pub enum ProxySuggestion {
     Direct,
     Proxy {
@@ -41,12 +44,14 @@ pub enum ProxySuggestion {
     }
 }
 
-pub fn find_proxy_suggestions(url: &str, host: &str) -> Vec<ProxySuggestion> {
-    return find_proxy(&url, &host).split(";").map(|s| {
-        if s == "DIRECT" {
-            ProxySuggestion::Direct
-        } else if s.starts_with("PROXY ") {
-            let mut parts = s[6..].split(":");
+impl FromStr for ProxySuggestion {
+    type Err = ParseError;
+
+    fn from_str(suggestion: &str) -> Result<Self, Self::Err> {
+        if suggestion == "DIRECT" {
+            Ok(ProxySuggestion::Direct)
+        } else if suggestion.starts_with("PROXY ") {
+            let mut parts = suggestion[6..].split(":");
             let host = String::from(parts.next().unwrap());
             let port = match parts.next() {
                 None => None,
@@ -54,12 +59,16 @@ pub fn find_proxy_suggestions(url: &str, host: &str) -> Vec<ProxySuggestion> {
                     Some(p.parse::<u16>().expect("invalid port"))
                 }
             };
-            ProxySuggestion::Proxy { host, port }
+            Ok(ProxySuggestion::Proxy { host, port })
         } else {
-            // TODO: warning
-            ProxySuggestion::Direct
+            // TODO: error instead
+            Ok(ProxySuggestion::Direct)
         }
-    }).collect();
+    }
+}
+
+pub fn find_proxy_suggestions(url: &str, host: &str) -> Vec<ProxySuggestion> {
+    return find_proxy(&url, &host).split(";").map(|s| s.parse::<ProxySuggestion>().expect("failed to parse proxy suggestion")).collect();
 }
 
 pub fn cleanup() {

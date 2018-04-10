@@ -16,10 +16,12 @@ use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
 mod pacparser;
 mod proxy;
 
+use pacparser::ProxySuggestion;
+
 struct Options {
     config: Option<String>,
     port: u16,
-    force_proxy: Option<String>,
+    force_proxy: Option<ProxySuggestion>,
     loglevel: String,
     systemd: bool,
 }
@@ -67,7 +69,7 @@ fn main() {
 
     pacparser::parse_pac_string(wpadtext).expect("Couldn't parse wpad file");
 
-    proxy::run_server(options.port);
+    proxy::run_server(options.port, options.force_proxy);
 
     pacparser::cleanup();
 }

@@ -16,19 +16,27 @@ use self::connection::two_way_pipe;
 use self::protocol::Preamble;
 use pacparser::{ProxySuggestion,find_proxy_suggestions};
 
-//fn choose_handler(request_line: connection::RequestLine) -> ConnectionHandler {
-//
-//}
+fn find_proxy(url: &str, host: &str, forced_proxy: Option<ProxySuggestion>) -> ProxySuggestion {
+    match forced_proxy {
+        Some(ref proxy_suggestion) => proxy_suggestion.clone(),
+        None => find_proxy_suggestions(url, host).remove(0),
+    }
+}
 
-pub fn run_server(port: u16) {
+pub fn run_server(port: u16, forced_proxy: Option<ProxySuggestion>) {
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let listener = TcpListener::bind(&addr).unwrap();
 
-    let server = listener.incoming().for_each(|downstream_connection| {
+    let server = listener.incoming().for_each(move |downstream_connection| {
         println!("accepted socket; addr={:?}", downstream_connection.peer_addr().unwrap());
 
+        // make a copy for the nested closure
+        let forced_proxy = forced_proxy.clone();
+
         let task = connection::Incoming::new(downstream_connection)
-            .and_then(|(incoming_result,downstream_connection)| {
+            .and_then(move |(incoming_result,downstream_connection)| {
+                // make a copy for the nested closure
+                let forced_proxy = forced_proxy.clone();
                 // First, find a hostname + url for doing the pacparser lookup
                 let (ref url, ref host, port) =
                     if incoming_result.preamble.method == "CONNECT" {
@@ -47,8 +55,8 @@ pub fn run_server(port: u16) {
                 let preamble_for_upstream : Option<Preamble>;
                 let my_response_for_downstream : Option<&'static [u8]>;
 
-                match find_proxy_suggestions(url, host).first() {
-                    Some(&ProxySuggestion::Direct) => {
+                match find_proxy(url, host, forced_proxy) {
+                    ProxySuggestion::Direct => {
                         if incoming_result.preamble.method == "CONNECT" {
                             preamble_for_upstream = None;
                             my_response_for_downstream = Some(b"HTTP/1.1 200 OK\r\n\r\n");
@@ -61,12 +69,11 @@ pub fn run_server(port: u16) {
                         }
                         upstream_addr = (host.as_str(), port).to_socket_addrs().expect("unparseable host").next().unwrap();
                     }
-                    Some(&ProxySuggestion::Proxy{ref host, ref port}) => {
+                    ProxySuggestion::Proxy{ref host, ref port} => {
                         preamble_for_upstream = Some(incoming_result.preamble);
                         my_response_for_downstream = None;
                         upstream_addr = (host.as_str(), port.unwrap_or(3128)).to_socket_addrs().expect("unparseable host").next().unwrap();
                     }
-                    None => panic!("No proxy suggestions?"),
                 }
                 println!("Host: {}, upstream addr: {:?}", host, upstream_addr);
 
