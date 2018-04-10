@@ -4,6 +4,8 @@ extern crate tokio;
 extern crate futures;
 extern crate uri;
 
+extern crate tokio_io;
+
 use std::io::prelude::*;
 use std::fs::File;
 

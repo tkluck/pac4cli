@@ -11,6 +11,8 @@ use uri::Uri;
 mod connection;
 mod protocol;
 
+use self::connection::two_way_pipe;
+
 struct Pac4CliProxy;
 
 //fn choose_handler(request_line: connection::RequestLine) -> ConnectionHandler {
@@ -25,7 +27,7 @@ pub fn run_server(port: u16) {
         println!("accepted socket; addr={:?}", socket.peer_addr().unwrap());
 
         let task = connection::Incoming::new(socket)
-            .and_then(|incoming_result| {
+            .and_then(|(incoming_result,socket)| {
                 //connection_handler = choose_handler(request_line);
                 //connection_handler.handle(request_line, headers, io);
                 let uri =  Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
@@ -35,6 +37,9 @@ pub fn run_server(port: u16) {
                 let data_exchange = TcpStream::connect(&remote_addr.next().unwrap())
                     .and_then(move |upstream_connection| {
                         incoming_result.preamble.write(upstream_connection)
+                    })
+                    .and_then(move |(preamble, upstream_connection)| {
+                        two_way_pipe(upstream_connection, socket)
                     })
                     .and_then(|_| {
                         Ok(())
