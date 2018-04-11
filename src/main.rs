@@ -1,8 +1,11 @@
 extern crate argparse;
 extern crate tokio;
+extern crate tokio_core;
 #[macro_use]
 extern crate futures;
 extern crate uri;
+extern crate dbus;
+extern crate dbus_tokio;
 
 // Needed since https://github.com/tokio-rs/tokio/commit/a6b307cfbefb568bd79eaf1d91edf9ab52d18533#diff-b4aea3e418ccdb71239b96952d9cddb6
 // is not released yet.
@@ -15,6 +18,7 @@ use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
 
 mod pacparser;
 mod proxy;
+mod wpad;
 
 use pacparser::ProxySuggestion;
 
@@ -68,6 +72,8 @@ fn main() {
     wpadfile.read_to_string(&mut wpadtext).expect("Couldn't read from file");
 
     pacparser::parse_pac_string(wpadtext).expect("Couldn't parse wpad file");
+
+    wpad::get_wpad_file();
 
     let server = proxy::run_server(options.port, options.force_proxy);
 

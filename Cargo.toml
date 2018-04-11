@@ -6,7 +6,10 @@ authors = ["Timo Kluck <tkluck@infty.nl>"]
 [dependencies]
 tokio = "0.1"
 tokio-io = "0.1"
+tokio-core = "0.1"
 libc = "0.2.0"
 argparse = "0.2.1"
 futures = "0.1.17"
 uri = "0.3.0"
+dbus = "0.6.1"
+dbus-tokio = "0.2.1"
