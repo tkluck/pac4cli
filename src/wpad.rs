@@ -30,12 +30,12 @@ fn get_path<P>(aconn: &AConnection, object_path: P, interface: &str, property: &
     return Box::new(method_call);
 }
 
-fn get_dict<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<Future<Item=HashMap<String,String>, Error=dbus::Error>>
+fn get_dict<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<Future<Item=HashMap<String,Variant<String>>, Error=dbus::Error>>
     where P: Into<Path<'static>> {
     let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
     let method_call = aconn.method_call(m).unwrap()
         .map(|m| {
-            let res : Variant<HashMap<String,String>> = m.get1().unwrap();
+            let res : Variant<HashMap<String,Variant<String>>> = m.get1().unwrap();
             res.0
         });
     return Box::new(method_call);
@@ -62,7 +62,7 @@ enum State {
         dhcp4_config_future: Box<Future<Item=Path<'static>,Error=dbus::Error>>,
     },
     ReceiveDhcp4Options {
-        dhcp4_options_future: Box<Future<Item=HashMap<String,String>,Error=dbus::Error>>
+        dhcp4_options_future: Box<Future<Item=HashMap<String,Variant<String>>,Error=dbus::Error>>
     },
     ReceiveIP4Config {
         ip4_config_future: Box<Future<Item=Path<'static>,Error=dbus::Error>>,
@@ -135,9 +135,10 @@ impl Future for WPADDiscoverer {
                  }
                  State::ReceiveDhcp4Options { ref mut dhcp4_options_future } => {
                      let options = try_ready!(dhcp4_options_future.poll());
-                     println!("got options: {:?}", options);
-                     self.wpad_info.wpad_option = options.get(&String::from("wpad")).cloned();
-
+                     self.wpad_info.wpad_option = match options.get(&String::from("wpad")) {
+                         None => None,
+                         Some(s) => Some(s.0.clone()),
+                     };
                      let ip4_config_future = get_path(&self.aconn, self.active_connections[self.ix].clone(), "org.freedesktop.NetworkManager.Connection.Active", "Ip4Config");
                      State::ReceiveIP4Config { ip4_config_future }
                  }
