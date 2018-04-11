@@ -16,7 +16,7 @@ fn get_list_of_paths<P>(aconn: &AConnection, object_path: P, interface: &str, pr
     let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
     let method_call = aconn.method_call(m).unwrap()
         .map(|m| {
-            let res : Variant<Vec<Path<'static>>> = m.get1().unwrap();
+            let res : Variant<Vec<Path<'static>>> = m.get1().expect("failed to parse list of paths");
             res.0
         });
     return Box::new(method_call);
@@ -27,7 +27,7 @@ fn get_path<P>(aconn: &AConnection, object_path: P, interface: &str, property: &
     let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
     let method_call = aconn.method_call(m).unwrap()
         .map(|m| {
-            let res : Variant<Path<'static>> = m.get1().unwrap();
+            let res : Variant<Path<'static>> = m.get1().expect("failed to parse path");
             res.0
         });
     return Box::new(method_call);
@@ -38,7 +38,7 @@ fn get_dict<P>(aconn: &AConnection, object_path: P, interface: &str, property: &
     let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
     let method_call = aconn.method_call(m).unwrap()
         .map(|m| {
-            let res : Variant<HashMap<String,Variant<String>>> = m.get1().unwrap();
+            let res : Variant<HashMap<String,Variant<String>>> = m.get1().expect("failed to parse dict");
             res.0
         });
     return Box::new(method_call);
@@ -49,7 +49,7 @@ fn get_list_of_strings<P>(aconn: &AConnection, object_path: P, interface: &str, 
     let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
     let method_call = aconn.method_call(m).unwrap()
         .map(|m| {
-            let res : Variant<Vec<String>> = m.get1().unwrap();
+            let res : Variant<Vec<String>> = m.get1().expect("failed to parse list of strings");
             res.0
         });
     return Box::new(method_call);
@@ -170,7 +170,9 @@ pub fn get_wpad_file() -> String {
     let http_client = Client::new(&core.handle());
 
     let task = WPADDiscoverer::new(&mut core)
-    .map_err(|_| ())
+    .map_err(|dbus_err| {
+        println!("dbus error: {:?}", dbus_err)
+    })
     .and_then(|info| {
         println!("Found information: {:?}", info);
         let url_strings = match info.wpad_option {
@@ -213,7 +215,7 @@ pub fn get_wpad_file() -> String {
     });
 
     println!("Sending dbus call");
-    core.run(task);
+    core.run(task).expect("issue while running the loop");
 
     String::from("abc")
 }
