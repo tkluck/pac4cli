@@ -6,7 +6,10 @@ use dbus::{BusType,Connection,Message,Path};
 use dbus::arg::Variant;
 use tokio::prelude::*;
 use tokio_core::reactor::Core;
+use futures::future::{loop_fn,Either,Loop};
 use dbus_tokio::AConnection;
+use hyper;
+use hyper::{Client,StatusCode};
 
 fn get_list_of_paths<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<Future<Item=Vec<Path<'static>>, Error=dbus::Error>>
     where P: Into<Path<'static>> {
@@ -163,14 +166,54 @@ impl Future for WPADDiscoverer {
  }
 
 pub fn get_wpad_file() -> String {
-
     let mut core = Core::new().unwrap();
-    let task = WPADDiscoverer::new(&mut core).map(|info| {
-        println!("Found information: {:?}", info)
-    }).map_err(|_| ());
+    let http_client = Client::new(&core.handle());
+
+    let task = WPADDiscoverer::new(&mut core)
+    .map_err(|_| ())
+    .and_then(|info| {
+        println!("Found information: {:?}", info);
+        let url_strings = match info.wpad_option {
+            None => info.domains.iter().map(|d| {
+                format!("http://wpad.{}/wpad.dat", d)
+            }).collect(),
+            Some(url) => [url].to_vec(),
+        };
+        let urls :Vec<hyper::Uri> = url_strings.iter().filter_map(|url| url.parse::<hyper::Uri>().ok()).collect();
+        println!("Urls: {:?}", urls);
+
+        let n = urls.len();
+        loop_fn(0, move |ix| {
+            http_client.get(urls[ix].clone())
+            .and_then(move |res| {
+                println!("Got http response: {:?}", res);
+                if res.status() != StatusCode::Ok {
+                    if ix+1 < n {
+                        Either::A(future::ok(Loop::Continue(ix+1)))
+                    } else {
+                        Either::A(future::ok(Loop::Break(None)))
+                    }
+                } else {
+                    Either::B(res.body().concat2().map(|body| {
+                        let wpad_script = String::from_utf8(body.to_vec()).expect("wpad script not valid utf8");
+                        println!("wpad script: {}", wpad_script);
+                        Loop::Break(Some(wpad_script))
+                    }))
+                }
+            })
+            .or_else(move |err| {
+                println!("error: {:?}", err);
+                if ix+1 < n {
+                    future::ok(Loop::Continue(ix+1))
+                } else {
+                    future::ok(Loop::Break(None))
+                }
+            })
+        })
+    });
 
     println!("Sending dbus call");
-    core.run(task).unwrap();
+    core.run(task);
 
     String::from("abc")
 }
