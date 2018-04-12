@@ -19,7 +19,7 @@ pub fn init() -> Result<(), ()> {
     }
 }
 
-pub fn parse_pac_string(pacstring: String) -> Result<(),()> {
+pub fn parse_pac_string(pacstring: &str) -> Result<(),()> {
     unsafe {
         let cstr = CString::new(pacstring).unwrap();
         return if pacparser_parse_pac_string(cstr.as_ptr()) == 1 { Ok(()) } else { Err(()) }

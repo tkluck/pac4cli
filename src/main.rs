@@ -12,10 +12,11 @@ extern crate hyper;
 // is not released yet.
 extern crate tokio_io;
 
-use std::io::prelude::*;
-use std::fs::File;
+use std::sync::{Mutex,Arc};
 
 use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
+use tokio_core::reactor::Core;
+use futures::Future;
 
 mod pacparser;
 mod proxy;
@@ -29,6 +30,13 @@ struct Options {
     force_proxy: Option<ProxySuggestion>,
     loglevel: String,
     systemd: bool,
+}
+
+#[derive(Debug,Clone)]
+pub enum AutoConfigState {
+    Discovering,
+    Direct,
+    PAC,
 }
 
 fn main() {
@@ -68,17 +76,38 @@ fn main() {
     }
     pacparser::init().expect("Failed to initialize pacparser");
 
-    let mut wpadfile = File::open("test/wpadserver/wpad.dat").expect("File not found");
-    let mut wpadtext = String::new();
-    wpadfile.read_to_string(&mut wpadtext).expect("Couldn't read from file");
+    let auto_config_state = Arc::new(Mutex::new(AutoConfigState::Discovering));
 
-    pacparser::parse_pac_string(wpadtext).expect("Couldn't parse wpad file");
+    let mut core = Core::new().unwrap();
 
-    wpad::get_wpad_file();
+    let set_wpad_config = {
+        let auto_config_state = auto_config_state.clone();
+        wpad::get_wpad_file(&mut core)
+        .map(move |wpad| {
+            let new_state = if let Some(ref script) = wpad {
+                match pacparser::parse_pac_string(script) {
+                    Ok(..) => AutoConfigState::PAC,
+                    Err(..) => AutoConfigState::Direct,
+                }
+            } else {
+                AutoConfigState::Direct
+            };
+            let mut state = auto_config_state.lock().expect("issue locking state");
+            *state = new_state;
+            println!("State is now {:?}", *state)
+        })
+    };
+    let serve = {
+        let auto_config_state = auto_config_state.clone();
+        proxy::create_server(options.port, options.force_proxy, auto_config_state)
+    };
 
-    let server = proxy::run_server(options.port, options.force_proxy);
+    let start_server = set_wpad_config
+    .and_then(|_| {
+        serve
+    });
 
-    tokio::run(server);
+    core.run(start_server);
 
     pacparser::cleanup();
 }

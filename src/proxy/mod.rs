@@ -1,4 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
+use std::sync::{Mutex,Arc};
 
 use tokio;
 use tokio::io;
@@ -15,15 +16,23 @@ mod protocol;
 use self::connection::two_way_pipe;
 use self::protocol::Preamble;
 use pacparser::{ProxySuggestion,find_proxy_suggestions};
+use ::AutoConfigState;
 
-fn find_proxy(url: &str, host: &str, forced_proxy: Option<ProxySuggestion>) -> ProxySuggestion {
-    match forced_proxy {
-        Some(ref proxy_suggestion) => proxy_suggestion.clone(),
-        None => find_proxy_suggestions(url, host).remove(0),
+fn find_proxy(url: &str, host: &str, forced_proxy: Option<ProxySuggestion>, auto_config_state: Arc<Mutex<AutoConfigState>>) -> ProxySuggestion {
+    let state = {
+        auto_config_state.lock().expect("Issue locking auto config state").clone()
+    };
+    match state {
+        AutoConfigState::Discovering => ProxySuggestion::Direct,
+        AutoConfigState::Direct => ProxySuggestion::Direct,
+        AutoConfigState::PAC => match forced_proxy {
+            Some(ref proxy_suggestion) => proxy_suggestion.clone(),
+            None => find_proxy_suggestions(url, host).remove(0),
+        },
     }
 }
 
-pub fn run_server(port: u16, forced_proxy: Option<ProxySuggestion>) -> Box<Future<Item=(),Error=()>+Send> {
+pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_config_state: Arc<Mutex<AutoConfigState>>) -> Box<Future<Item=(),Error=()>+Send> {
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let listener = TcpListener::bind(&addr).unwrap();
 
@@ -32,11 +41,13 @@ pub fn run_server(port: u16, forced_proxy: Option<ProxySuggestion>) -> Box<Futur
 
         // make a copy for the nested closure
         let forced_proxy = forced_proxy.clone();
+        let auto_config_state = auto_config_state.clone();
 
         let task = connection::Incoming::new(downstream_connection)
             .and_then(move |(incoming_result,downstream_connection)| {
                 // make a copy for the nested closure
                 let forced_proxy = forced_proxy.clone();
+                let auto_config_state = auto_config_state.clone();
                 // First, find a hostname + url for doing the pacparser lookup
                 let (ref url, ref host, port) =
                     if incoming_result.preamble.method == "CONNECT" {
@@ -55,7 +66,7 @@ pub fn run_server(port: u16, forced_proxy: Option<ProxySuggestion>) -> Box<Futur
                 let preamble_for_upstream : Option<Preamble>;
                 let my_response_for_downstream : Option<&'static [u8]>;
 
-                match find_proxy(url, host, forced_proxy) {
+                match find_proxy(url, host, forced_proxy, auto_config_state) {
                     ProxySuggestion::Direct => {
                         if incoming_result.preamble.method == "CONNECT" {
                             preamble_for_upstream = None;

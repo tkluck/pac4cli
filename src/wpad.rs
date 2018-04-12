@@ -165,11 +165,10 @@ impl Future for WPADDiscoverer {
      }
  }
 
-pub fn get_wpad_file() -> String {
-    let mut core = Core::new().unwrap();
+pub fn get_wpad_file(core: &mut Core) -> Box<Future<Item=Option<String>,Error=()>> {
     let http_client = Client::new(&core.handle());
 
-    let task = WPADDiscoverer::new(&mut core)
+    let task = WPADDiscoverer::new(core)
     .map_err(|dbus_err| {
         println!("dbus error: {:?}", dbus_err)
     })
@@ -211,8 +210,5 @@ pub fn get_wpad_file() -> String {
         })
     });
 
-    println!("Sending dbus call");
-    core.run(task).expect("issue while running the loop");
-
-    String::from("abc")
+    return Box::new(task);
 }
