@@ -89,10 +89,12 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
 
                 TcpStream::connect(&upstream_addr)
                     .and_then(move |upstream_connection| {
+                        debug!("Connected to upstream.");
                         let write_upstream =
                             if let Some(preamble) = preamble_for_upstream {
                                 Either::A(preamble.write(upstream_connection)
                                         .map(|(_preamble, upstream_connection)| {
+                                            trace!("Written preamble to upstream");
                                             upstream_connection
                                         }))
                             } else {
@@ -102,6 +104,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                             if let Some(response) = my_response_for_downstream {
                                 Either::A(io::write_all(downstream_connection, response)
                                         .map(|(downstream_connection, _response)| {
+                                            trace!("Written my response to downstream");
                                             downstream_connection
                                         }))
                             } else {
@@ -110,6 +113,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                         write_upstream.join(write_downstream)
                     })
                     .and_then(|(upstream_connection, downstream_connection)| {
+                        trace!("Starting two-way pipe");
                         two_way_pipe(upstream_connection, downstream_connection)
                     })
                     .and_then(|_| {
