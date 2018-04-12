@@ -56,7 +56,8 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                     } else {
                         let uri =  Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
                         let host = uri.host.expect("No host in URI; aborting");
-                        let port : u16 = if uri.scheme == "https" { 443 } else { 80 };
+                        let default_port : u16 = if uri.scheme == "https" { 443 } else { 80 };
+                        let port = uri.port.unwrap_or(default_port);
                         (incoming_result.preamble.uri.clone(), host, port)
                     };
 
