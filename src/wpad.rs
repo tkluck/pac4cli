@@ -5,7 +5,7 @@ use dbus;
 use dbus::{BusType,Connection,Message,Path};
 use dbus::arg::Variant;
 use tokio::prelude::*;
-use tokio_core::reactor::Core;
+use tokio_core::reactor::Handle;
 use futures::future::{loop_fn,Either,Loop};
 use dbus_tokio::AConnection;
 use hyper;
@@ -92,9 +92,9 @@ struct WPADDiscoverer {
 }
 
 impl WPADDiscoverer {
-    fn new(core: &mut Core) -> Self {
+    fn new(handle: Handle) -> Self {
         let c = Rc::new(Connection::get_private(BusType::System).unwrap());
-        let aconn = AConnection::new(c.clone(), core.handle()).unwrap();
+        let aconn = AConnection::new(c.clone(), handle).unwrap();
         Self {
             aconn,
             active_connections: Vec::new(),
@@ -172,10 +172,10 @@ impl Future for WPADDiscoverer {
      }
  }
 
-pub fn get_wpad_file(core: &mut Core) -> Box<Future<Item=Option<String>,Error=()>> {
-    let http_client = Client::new(&core.handle());
+pub fn get_wpad_file(handle: Handle) -> Box<Future<Item=Option<String>,Error=()>> {
+    let http_client = Client::new(&handle);
 
-    let task = WPADDiscoverer::new(core)
+    let task = WPADDiscoverer::new(handle)
     .map_err(|dbus_err| {
         warn!("dbus error: {:?}", dbus_err)
     })

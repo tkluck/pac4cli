@@ -12,6 +12,7 @@ extern crate futures;
 extern crate uri;
 extern crate dbus;
 extern crate dbus_tokio;
+extern crate tokio_signal;
 extern crate hyper;
 
 // Needed since https://github.com/tokio-rs/tokio/commit/a6b307cfbefb568bd79eaf1d91edf9ab52d18533#diff-b4aea3e418ccdb71239b96952d9cddb6
@@ -22,8 +23,9 @@ use std::sync::{Mutex,Arc};
 
 use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
 use slog::Drain;
-use tokio_core::reactor::Core;
-use futures::Future;
+use tokio_core::reactor::{Core,Handle};
+use futures::{Future,Stream};
+use tokio_signal::unix::{Signal, SIGHUP};
 
 mod pacparser;
 mod proxy;
@@ -99,9 +101,9 @@ fn main() {
 
         let mut core = Core::new().unwrap();
 
-        let set_wpad_config = {
+        fn find_wpad_config_future(auto_config_state: &Arc<Mutex<AutoConfigState>>, handle: &Handle) -> Box<Future<Item=(), Error=()>> {
             let auto_config_state = auto_config_state.clone();
-            wpad::get_wpad_file(&mut core)
+            let future = wpad::get_wpad_file(handle.clone())
             .map(move |wpad| {
                 let mut state = auto_config_state.lock().expect("issue locking state");
                 *state = if let Some(ref script) = wpad {
@@ -113,19 +115,40 @@ fn main() {
                     AutoConfigState::Direct
                 };
                 info!("State is now {:?}", *state)
-            })
-        };
+            });
+            Box::new(future)
+        }
+
         let serve = {
             let auto_config_state = auto_config_state.clone();
             proxy::create_server(options.port, options.force_proxy, auto_config_state)
         };
 
-        let start_server = set_wpad_config
+        let handle_sighups = {
+            let handle = core.handle();
+            let auto_config_state = auto_config_state.clone();
+            Signal::new(SIGHUP, &handle).flatten_stream()
+            .map_err(|err| {
+                warn!("Error retrieving SIGHUPs: {:?}", err)
+            })
+            .for_each(move |_| {
+                info!("SIGHUP received");
+                find_wpad_config_future(&auto_config_state, &handle)
+            })
+            .map_err(|err| {
+                warn!("Error handling SIGHUP: {:?}", err)
+            })
+        };
+
+        let start_server = find_wpad_config_future(&auto_config_state, &core.handle())
         .and_then(|_| {
-            serve
+            serve.join(handle_sighups)
+        })
+        .map_err(|err| {
+            error!("Can't start server: {:?}", err)
         });
 
-        core.run(start_server);
+        core.run(start_server).expect("Issue running server!");
 
         pacparser::cleanup();
     });
