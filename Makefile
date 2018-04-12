@@ -51,7 +51,7 @@ run: env
 
 .PHONY: check
 check:
-	LD_LIBRARY_PATH="`pwd`/pacparser/src" python3 test/runtests.py
+	python3 test/runtests.py
 
 .PHONY: check-prev-proxies
 check-prev-proxies:
