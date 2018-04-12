@@ -24,7 +24,7 @@ from plumbum import FG, BG
 from plumbum.cmd import curl, cargo
 
 python     = plumbum.local["env/bin/python"]
-serve_once = plumbum.local["nc.openbsd"]["-C", "-l", "-p"]
+serve_once = plumbum.local["nc.openbsd"]["-C", "-l", "-q", 20, "-p"]
 pac4cli    = cargo["run", "--"]
 
 testdir = plumbum.local.path(os.path.dirname(os.path.abspath(__file__)))
