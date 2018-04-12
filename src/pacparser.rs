@@ -20,19 +20,19 @@ pub fn init() -> Result<(), ()> {
 }
 
 pub fn parse_pac_string(pacstring: &str) -> Result<(),()> {
+    let cstr = CString::new(pacstring).unwrap();
     unsafe {
-        let cstr = CString::new(pacstring).unwrap();
         return if pacparser_parse_pac_string(cstr.as_ptr()) == 1 { Ok(()) } else { Err(()) }
     }
 }
 
 fn find_proxy(url: &str, host: &str) -> String {
-    unsafe {
-        let curl = CString::new(url).unwrap();
-        let chost = CString::new(host).unwrap();
-        let cres = CStr::from_ptr( pacparser_find_proxy(curl.as_ptr(), chost.as_ptr()) );
-        return String::from( cres.to_str().unwrap() );
-    }
+    let curl = CString::new(url).unwrap();
+    let chost = CString::new(host).unwrap();
+    let cres = unsafe {
+        CStr::from_ptr( pacparser_find_proxy(curl.as_ptr(), chost.as_ptr()) )
+    };
+    return String::from( cres.to_str().unwrap() );
 }
 
 #[derive(Clone)]
