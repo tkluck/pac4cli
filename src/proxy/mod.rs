@@ -19,10 +19,8 @@ use pacparser::{ProxySuggestion,find_proxy_suggestions};
 use ::AutoConfigState;
 
 fn find_proxy(url: &str, host: &str, forced_proxy: Option<ProxySuggestion>, auto_config_state: Arc<Mutex<AutoConfigState>>) -> ProxySuggestion {
-    let state = {
-        auto_config_state.lock().expect("Issue locking auto config state").clone()
-    };
-    match state {
+    let state = auto_config_state.lock().expect("Issue locking auto config state");
+    match *state {
         AutoConfigState::Discovering => ProxySuggestion::Direct,
         AutoConfigState::Direct => ProxySuggestion::Direct,
         AutoConfigState::PAC => match forced_proxy {

@@ -84,7 +84,8 @@ fn main() {
         let auto_config_state = auto_config_state.clone();
         wpad::get_wpad_file(&mut core)
         .map(move |wpad| {
-            let new_state = if let Some(ref script) = wpad {
+            let mut state = auto_config_state.lock().expect("issue locking state");
+            *state = if let Some(ref script) = wpad {
                 match pacparser::parse_pac_string(script) {
                     Ok(..) => AutoConfigState::PAC,
                     Err(..) => AutoConfigState::Direct,
@@ -92,8 +93,6 @@ fn main() {
             } else {
                 AutoConfigState::Direct
             };
-            let mut state = auto_config_state.lock().expect("issue locking state");
-            *state = new_state;
             println!("State is now {:?}", *state)
         })
     };
