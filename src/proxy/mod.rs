@@ -89,7 +89,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
 
                 TcpStream::connect(&upstream_addr)
                     .and_then(move |upstream_connection| {
-                        debug!("Connected to upstream.");
+                        debug!("Connected to upstream");
                         let write_upstream =
                             if let Some(preamble) = preamble_for_upstream {
                                 Either::A(preamble.write(upstream_connection)
@@ -117,6 +117,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                         two_way_pipe(upstream_connection, downstream_connection)
                     })
                     .and_then(|_| {
+                        debug!("Successfully served request");
                         Ok(())
                     })
             })
