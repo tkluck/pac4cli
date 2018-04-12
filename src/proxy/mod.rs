@@ -35,7 +35,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
     let listener = TcpListener::bind(&addr).unwrap();
 
     let server = listener.incoming().for_each(move |downstream_connection| {
-        println!("accepted socket; addr={:?}", downstream_connection.peer_addr().unwrap());
+        debug!("accepted socket; addr={:?}", downstream_connection.peer_addr().unwrap());
 
         // make a copy for the nested closure
         let forced_proxy = forced_proxy.clone();
@@ -84,7 +84,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                         upstream_addr = (host.as_str(), port.unwrap_or(3128)).to_socket_addrs().expect("unparseable host").next().unwrap();
                     }
                 }
-                println!("Host: {}, upstream addr: {:?}", host, upstream_addr);
+                debug!("Host: {}, upstream addr: {:?}", host, upstream_addr);
 
                 TcpStream::connect(&upstream_addr)
                     .and_then(move |upstream_connection| {
@@ -116,7 +116,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                     })
             })
             .map_err(|err| {
-                println!("connection error = {:?}", err);
+                warn!("connection error = {:?}", err);
             });
 
         // Spawn a new task that processes the socket:
@@ -125,11 +125,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
         Ok(())
     })
     .map_err(|err| {
-        // All tasks must have an `Error` type of `()`. This forces error
-        // handling and helps avoid silencing failures.
-        //
-        // In our example, we are only going to log the error to STDOUT.
-        println!("accept error = {:?}", err);
+        error!("accept error = {:?}", err);
     });
     return Box::new(server);
 }

@@ -115,11 +115,13 @@ impl Future for WPADDiscoverer {
          loop {
              self.state = match self.state {
                  State::Start => {
+                     debug!("Finding active connections");
                      let paths_future = get_list_of_paths(&self.aconn, "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "ActiveConnections");
                      State::ReceiveActiveConnections { paths_future }
                  }
                  State::ReceiveActiveConnections { ref mut paths_future } => {
                      let active_connections = try_ready!(paths_future.poll());
+                     debug!("received active connections: {:?}", active_connections);
                      self.active_connections.extend(active_connections);
                      State::LoopConnections
                  }
@@ -133,11 +135,13 @@ impl Future for WPADDiscoverer {
                  }
                  State::ReceiveDhcp4Config { ref mut dhcp4_config_future } => {
                      let config_path = try_ready!(dhcp4_config_future.poll());
+                     debug!("received config path: {:?}", config_path);
                      let dhcp4_options_future = get_dict(&self.aconn, config_path.clone(), "org.freedesktop.NetworkManager.DHCP4Config", "Options");
                      State::ReceiveDhcp4Options { dhcp4_options_future }
                  }
                  State::ReceiveDhcp4Options { ref mut dhcp4_options_future } => {
                      let options = try_ready!(dhcp4_options_future.poll());
+                     debug!("received dhcp4 options: {:?}", options);
                      self.wpad_info.wpad_option = match options.get(&String::from("wpad")) {
                          None => None,
                          Some(s) => Some(s.0.clone()),
@@ -146,12 +150,15 @@ impl Future for WPADDiscoverer {
                      State::ReceiveIP4Config { ip4_config_future }
                  }
                  State::ReceiveIP4Config { ref mut ip4_config_future } => {
+                     debug!("polling ip4 config");
                      let config_path = try_ready!(ip4_config_future.poll());
+                     debug!("received config path: {:?}", config_path);
                      let domain_future = get_list_of_strings(&self.aconn, config_path.clone(), "org.freedesktop.NetworkManager.IP4Config", "Domains");
                      State::ReceiveDomain { domain_future }
                  }
                  State::ReceiveDomain { ref mut domain_future } => {
                      let domains = try_ready!(domain_future.poll());
+                     debug!("received domains: {:?}", domains);
                      self.wpad_info.domains.extend(domains);
                      State::NextConnection
                  }
@@ -170,10 +177,10 @@ pub fn get_wpad_file(core: &mut Core) -> Box<Future<Item=Option<String>,Error=()
 
     let task = WPADDiscoverer::new(core)
     .map_err(|dbus_err| {
-        println!("dbus error: {:?}", dbus_err)
+        warn!("dbus error: {:?}", dbus_err)
     })
     .and_then(|info| {
-        println!("Found information: {:?}", info);
+        info!("Found network information: {:?}", info);
         let url_strings = match info.wpad_option {
             None => info.domains.iter().map(|d| {
                 format!("http://wpad.{}/wpad.dat", d)
@@ -181,26 +188,28 @@ pub fn get_wpad_file(core: &mut Core) -> Box<Future<Item=Option<String>,Error=()
             Some(url) => [url].to_vec(),
         };
         let urls :Vec<hyper::Uri> = url_strings.iter().filter_map(|url| url.parse::<hyper::Uri>().ok()).collect();
-        println!("Urls: {:?}", urls);
+        debug!("Urls: {:?}", urls);
 
         let n = urls.len();
         loop_fn(0, move |ix| {
             if ix < n {
                 let get_wpad = http_client.get(urls[ix].clone())
                 .and_then(move |res| {
-                    println!("Got http response: {:?}", res);
                     if res.status() != StatusCode::Ok {
                         Either::A(future::ok(Loop::Continue(ix+1)))
                     } else {
                         Either::B(res.body().concat2().map(|body| {
                             let wpad_script = String::from_utf8(body.to_vec()).expect("wpad script not valid utf8");
-                            println!("wpad script: {}", wpad_script);
+                            trace!("wpad script: {}", wpad_script);
                             Loop::Break(Some(wpad_script))
                         }))
                     }
                 })
                 .or_else(move |err| {
-                    println!("error: {:?}", err);
+                    // this error is expected, as we're just sending requests
+                    // to random wpad.<domain> hosts that don't even exist
+                    // in most networks
+                    info!("No wpad configuration found: {:?}", err);
                     future::ok(Loop::Continue(ix+1))
                 });
                 Either::A(get_wpad)

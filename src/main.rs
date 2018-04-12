@@ -1,3 +1,9 @@
+#[macro_use]
+extern crate slog;
+#[macro_use]
+extern crate slog_scope;
+extern crate slog_term;
+
 extern crate argparse;
 extern crate tokio;
 extern crate tokio_core;
@@ -15,6 +21,7 @@ extern crate tokio_io;
 use std::sync::{Mutex,Arc};
 
 use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
+use slog::Drain;
 use tokio_core::reactor::Core;
 use futures::Future;
 
@@ -28,7 +35,7 @@ struct Options {
     config: Option<String>,
     port: u16,
     force_proxy: Option<ProxySuggestion>,
-    loglevel: String,
+    loglevel: slog::FilterLevel,
     systemd: bool,
 }
 
@@ -44,7 +51,7 @@ fn main() {
         config:      None,
         port:        3128,
         force_proxy: None,
-        loglevel:    String::from("DEBUG"),
+        loglevel:    slog::FilterLevel::Debug,
         systemd:     false,
     };
 
@@ -74,39 +81,52 @@ fn main() {
             "Assume running under systemd (for logging and readiness notification) [not implemented]");
         ap.parse_args_or_exit();
     }
-    pacparser::init().expect("Failed to initialize pacparser");
+    // set up loggin
+    let plain = slog_term::PlainSyncDecorator::new(std::io::stdout());
+    let log = slog::Logger::root(
+        slog_term::FullFormat::new(plain)
+        .build().fuse(), slog_o!()
+    );
 
-    let auto_config_state = Arc::new(Mutex::new(AutoConfigState::Discovering));
+    // Need to keep _guard alive for as long as we want to log
+    let _guard = slog_scope::set_global_logger(log);
+    slog_scope::scope(&slog_scope::logger().new(slog_o!()),
+        || {
 
-    let mut core = Core::new().unwrap();
+        pacparser::init().expect("Failed to initialize pacparser");
 
-    let set_wpad_config = {
-        let auto_config_state = auto_config_state.clone();
-        wpad::get_wpad_file(&mut core)
-        .map(move |wpad| {
-            let mut state = auto_config_state.lock().expect("issue locking state");
-            *state = if let Some(ref script) = wpad {
-                match pacparser::parse_pac_string(script) {
-                    Ok(..) => AutoConfigState::PAC,
-                    Err(..) => AutoConfigState::Direct,
-                }
-            } else {
-                AutoConfigState::Direct
-            };
-            println!("State is now {:?}", *state)
-        })
-    };
-    let serve = {
-        let auto_config_state = auto_config_state.clone();
-        proxy::create_server(options.port, options.force_proxy, auto_config_state)
-    };
+        let auto_config_state = Arc::new(Mutex::new(AutoConfigState::Discovering));
 
-    let start_server = set_wpad_config
-    .and_then(|_| {
-        serve
+        let mut core = Core::new().unwrap();
+
+        let set_wpad_config = {
+            let auto_config_state = auto_config_state.clone();
+            wpad::get_wpad_file(&mut core)
+            .map(move |wpad| {
+                let mut state = auto_config_state.lock().expect("issue locking state");
+                *state = if let Some(ref script) = wpad {
+                    match pacparser::parse_pac_string(script) {
+                        Ok(..) => AutoConfigState::PAC,
+                        Err(..) => AutoConfigState::Direct,
+                    }
+                } else {
+                    AutoConfigState::Direct
+                };
+                info!("State is now {:?}", *state)
+            })
+        };
+        let serve = {
+            let auto_config_state = auto_config_state.clone();
+            proxy::create_server(options.port, options.force_proxy, auto_config_state)
+        };
+
+        let start_server = set_wpad_config
+        .and_then(|_| {
+            serve
+        });
+
+        core.run(start_server);
+
+        pacparser::cleanup();
     });
-
-    core.run(start_server);
-
-    pacparser::cleanup();
 }
