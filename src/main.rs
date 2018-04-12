@@ -87,7 +87,7 @@ fn main() {
             "One of DEBUG/INFO/WARNING/ERROR");
         ap.refer(&mut options.systemd)
             .add_option(&["--systemd"], StoreTrue,
-            "Assume running under systemd (for logging and readiness notification)");
+            "Assume running under systemd (log to journald)");
         ap.parse_args_or_exit();
     }
     // set up logging
