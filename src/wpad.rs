@@ -186,31 +186,28 @@ pub fn get_wpad_file() -> String {
 
         let n = urls.len();
         loop_fn(0, move |ix| {
-            http_client.get(urls[ix].clone())
-            .and_then(move |res| {
-                println!("Got http response: {:?}", res);
-                if res.status() != StatusCode::Ok {
-                    if ix+1 < n {
+            if ix < n {
+                let get_wpad = http_client.get(urls[ix].clone())
+                .and_then(move |res| {
+                    println!("Got http response: {:?}", res);
+                    if res.status() != StatusCode::Ok {
                         Either::A(future::ok(Loop::Continue(ix+1)))
                     } else {
-                        Either::A(future::ok(Loop::Break(None)))
+                        Either::B(res.body().concat2().map(|body| {
+                            let wpad_script = String::from_utf8(body.to_vec()).expect("wpad script not valid utf8");
+                            println!("wpad script: {}", wpad_script);
+                            Loop::Break(Some(wpad_script))
+                        }))
                     }
-                } else {
-                    Either::B(res.body().concat2().map(|body| {
-                        let wpad_script = String::from_utf8(body.to_vec()).expect("wpad script not valid utf8");
-                        println!("wpad script: {}", wpad_script);
-                        Loop::Break(Some(wpad_script))
-                    }))
-                }
-            })
-            .or_else(move |err| {
-                println!("error: {:?}", err);
-                if ix+1 < n {
+                })
+                .or_else(move |err| {
+                    println!("error: {:?}", err);
                     future::ok(Loop::Continue(ix+1))
-                } else {
-                    future::ok(Loop::Break(None))
-                }
-            })
+                });
+                Either::A(get_wpad)
+            } else {
+                Either::B(future::ok(Loop::Break(None)))
+            }
         })
     });
 
