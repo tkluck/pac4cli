@@ -96,8 +96,7 @@ fn main() {
 
     // Need to keep _guard alive for as long as we want to log
     let _guard = slog_scope::set_global_logger(log);
-    slog_scope::scope(&slog_scope::logger().new(slog_o!()),
-        || {
+    slog_scope::scope(&slog_scope::logger().new(slog_o!()), || {
 
         let force_wpad_url = if let Some(file) = options.config {
             info!("Loading configuration file {}", file);
