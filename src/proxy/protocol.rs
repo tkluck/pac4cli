@@ -29,6 +29,10 @@ pub struct WritePreamble<IO: io::AsyncWrite> {
     io: Option<IO>,
 }
 
+fn zero_write() -> io::Error {
+    io::Error::new(io::ErrorKind::WriteZero, "zero-length write")
+}
+
 impl<IO: io::AsyncWrite> Future for WritePreamble<IO> {
     type Item = (Preamble,IO);
     type Error = io::Error;
@@ -41,37 +45,58 @@ impl<IO: io::AsyncWrite> Future for WritePreamble<IO> {
                         State::WritingMethod { ref mut pos } => {
                             while *pos < preamble.method.len() {
                                 let n = try_ready!(io.poll_write(preamble.method[*pos..].as_bytes()));
+                                if n == 0 {
+                                    return Err(zero_write())
+                                }
                                 *pos += n;
                             }
                         }
                         State::WritingSpace1 { } | State::WritingSpace2 { } => {
-                            try_ready!(io.poll_write(b" "));
+                            let n = try_ready!(io.poll_write(b" "));
+                            if n == 0 {
+                                return Err(zero_write())
+                            }
                         }
                         State::WritingUri { ref mut pos } => {
                             while *pos < preamble.uri.len() {
                                 let n = try_ready!(io.poll_write(preamble.uri[*pos..].as_bytes()));
+                                if n == 0 {
+                                    return Err(zero_write())
+                                }
                                 *pos += n;
                             }
                         }
                         State::WritingHTTPVersion { ref mut pos } => {
                             while *pos < preamble.http_version.len() {
                                 let n = try_ready!(io.poll_write(preamble.http_version[*pos..].as_bytes()));
+                                if n == 0 {
+                                    return Err(zero_write())
+                                }
                                 *pos += n;
                             }
                         }
                         State::WritingHeader { header, ref mut pos } => {
                             while *pos < 2 {
                                 let n = try_ready!(io.poll_write(&b"\r\n"[*pos..]));
+                                if n == 0 {
+                                    return Err(zero_write())
+                                }
                                 *pos += n;
                             }
                             while header < preamble.headers.len() && *pos - 2 < preamble.http_version.len() {
                                 let n = try_ready!(io.poll_write(preamble.headers[header][*pos-2..].as_bytes()));
+                                if n == 0 {
+                                    return Err(zero_write())
+                                }
                                 *pos += n;
                             }
                         }
                         State::WritingTerminator { ref mut pos } => {
                             while *pos < 4 {
                                 let n = try_ready!(io.poll_write(&b"\r\n\r\n"[*pos..]));
+                                if n == 0 {
+                                    return Err(zero_write())
+                                }
                                 *pos += n;
                             }
                         }
