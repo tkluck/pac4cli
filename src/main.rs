@@ -36,6 +36,7 @@ use tokio_signal::unix::{Signal, SIGHUP};
 mod pacparser;
 mod proxy;
 mod wpad;
+mod systemd;
 
 use pacparser::ProxySuggestion;
 
@@ -185,6 +186,13 @@ fn main() {
         .map_err(|err| {
             error!("Can't start server: {:?}", err)
         });
+
+        // there is still a race condition here, as the socket is
+        // only bound lazily by tokio's futures/streams. The API has
+        // no way of hooking in to the moment that the socket has been
+        // bound (before any connections have been accepted), so this
+        // is as close as we'll get.
+        systemd::notify_ready();
 
         core.run(start_server).expect("Issue running server!");
 
