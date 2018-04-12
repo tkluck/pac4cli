@@ -122,7 +122,9 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                     })
             })
             .map_err(|err| {
-                warn!("connection error = {:?}", err);
+                // this may happen e.g. if the connection gets lost; not usually something
+                // we have to log
+                debug!("connection error: {:?}", err);
             });
 
         // Spawn a new task that processes the socket:
@@ -131,7 +133,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
         Ok(())
     })
     .map_err(|err| {
-        error!("accept error = {:?}", err);
+        error!("accept error: {:?}", err);
     });
     return Box::new(server);
 }
