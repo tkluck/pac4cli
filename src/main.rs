@@ -81,7 +81,7 @@ fn main() {
             "Assume running under systemd (for logging and readiness notification) [not implemented]");
         ap.parse_args_or_exit();
     }
-    // set up loggin
+    // set up logging
     let plain = slog_term::PlainSyncDecorator::new(std::io::stdout());
     let log = slog::Logger::root(
         slog_term::FullFormat::new(plain)
