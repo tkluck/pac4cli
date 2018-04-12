@@ -21,9 +21,9 @@ from time import sleep
 import plumbum
 from plumbum import FG, BG
 
-from plumbum.cmd import curl
+from plumbum.cmd import curl, python3
 
-python     = plumbum.local["env/bin/python"]
+python     = python3
 serve_once = plumbum.local["nc.openbsd"]["-C", "-l", "-q", 20, "-p"]
 pac4cli    = plumbum.local["target/debug/pac4cli"]
 
