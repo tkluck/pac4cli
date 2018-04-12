@@ -97,24 +97,49 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
             [wifi1], con1, ap1, 'Mock_Active1',
             NMActiveConnectionState.NM_ACTIVE_CONNECTION_STATE_ACTIVATED)
 
+        conn_obj = dbus.Interface(
+            self.dbus_con.get_object("org.freedesktop.NetworkManager", active_con1),
+            dbusmock.MOCK_IFACE,
+        )
+        # ------------------------------------------
+        #
+        # Add a mock dhcp4 config, and add it to conn_obj
+        #
+        # ------------------------------------------
         self.dbusmock.AddObject(
             '/org/freedesktop/NetworkManager/DHCP4Config/1',
             'org.freedesktop.NetworkManager.DHCP4Config',
             {
                 'Options': {
-                    'wpad': 'http://localhost:8080/wpad.dat',
+                    'wpad': dbus.String('http://localhost:8080/wpad.dat', variant_level=1),
                 },
             },
             [],
         )
-        conn_obj = dbus.Interface(
-            self.dbus_con.get_object("org.freedesktop.NetworkManager", active_con1),
-            dbusmock.MOCK_IFACE,
-        )
         conn_obj.AddProperty(
             'org.freedesktop.NetworkManager.Connection.Active',
             'Dhcp4Config',
-            '/org/freedesktop/NetworkManager/DHCP4Config/1',
+            dbus.ObjectPath('/org/freedesktop/NetworkManager/DHCP4Config/1'),
+        )
+        # ------------------------------------------
+        #
+        # Add a mock ip4 config
+        #
+        # ------------------------------------------
+        self.dbusmock.AddObject(
+            '/org/freedesktop/NetworkManager/IP4Config/1',
+            'org.freedesktop.NetworkManager.IP4Config',
+            {
+                'Domains': [
+                    "example.local",
+                ],
+            },
+            [],
+        )
+        conn_obj.AddProperty(
+            'org.freedesktop.NetworkManager.Connection.Active',
+            'Ip4Config',
+            dbus.ObjectPath('/org/freedesktop/NetworkManager/IP4Config/1'),
         )
 
         # for inspecting the resulting dbus objects
