@@ -172,14 +172,13 @@ impl Future for WPADDiscoverer {
      }
  }
 
-pub fn get_wpad_file(handle: Handle) -> Box<Future<Item=Option<String>,Error=()>> {
-    let http_client = Client::new(&handle);
+pub fn get_wpad_urls(handle: Handle) -> Box<Future<Item=Vec<String>,Error=()>> {
 
     let task = WPADDiscoverer::new(handle)
     .map_err(|dbus_err| {
         warn!("dbus error: {:?}", dbus_err)
     })
-    .and_then(|info| {
+    .map(|info| {
         info!("Found network information: {:?}", info);
         let url_strings = match info.wpad_option {
             None => info.domains.iter().map(|d| {
@@ -187,37 +186,44 @@ pub fn get_wpad_file(handle: Handle) -> Box<Future<Item=Option<String>,Error=()>
             }).collect(),
             Some(url) => [url].to_vec(),
         };
-        let urls :Vec<hyper::Uri> = url_strings.iter().filter_map(|url| url.parse::<hyper::Uri>().ok()).collect();
-        debug!("Urls: {:?}", urls);
-
-        let n = urls.len();
-        loop_fn(0, move |ix| {
-            if ix < n {
-                let get_wpad = http_client.get(urls[ix].clone())
-                .and_then(move |res| {
-                    if res.status() != StatusCode::Ok {
-                        Either::A(future::ok(Loop::Continue(ix+1)))
-                    } else {
-                        Either::B(res.body().concat2().map(|body| {
-                            let wpad_script = String::from_utf8(body.to_vec()).expect("wpad script not valid utf8");
-                            trace!("wpad script: {}", wpad_script);
-                            Loop::Break(Some(wpad_script))
-                        }))
-                    }
-                })
-                .or_else(move |err| {
-                    // this error is expected, as we're just sending requests
-                    // to random wpad.<domain> hosts that don't even exist
-                    // in most networks
-                    info!("No wpad configuration found: {:?}", err);
-                    future::ok(Loop::Continue(ix+1))
-                });
-                Either::A(get_wpad)
-            } else {
-                Either::B(future::ok(Loop::Break(None)))
-            }
-        })
+        url_strings
     });
+    return Box::new(task);
+}
 
+pub fn retrieve_first_working_url(handle: Handle, url_strings: Vec<String>) -> Box<Future<Item=Option<String>,Error=()>> {
+
+    let http_client = Client::new(&handle);
+
+    let urls :Vec<hyper::Uri> = url_strings.iter().filter_map(|url| url.parse::<hyper::Uri>().ok()).collect();
+    debug!("Urls: {:?}", urls);
+
+    let n = urls.len();
+    let task = loop_fn(0, move |ix| {
+        if ix < n {
+            let get_wpad = http_client.get(urls[ix].clone())
+            .and_then(move |res| {
+                if res.status() != StatusCode::Ok {
+                    Either::A(future::ok(Loop::Continue(ix+1)))
+                } else {
+                    Either::B(res.body().concat2().map(|body| {
+                        let wpad_script = String::from_utf8(body.to_vec()).expect("wpad script not valid utf8");
+                        trace!("wpad script: {}", wpad_script);
+                        Loop::Break(Some(wpad_script))
+                    }))
+                }
+            })
+            .or_else(move |err| {
+                // this error is expected, as we're just sending requests
+                // to random wpad.<domain> hosts that don't even exist
+                // in most networks
+                info!("No wpad configuration found: {:?}", err);
+                future::ok(Loop::Continue(ix+1))
+            });
+            Either::A(get_wpad)
+        } else {
+            Either::B(future::ok(Loop::Break(None)))
+        }
+    });
     return Box::new(task);
 }
