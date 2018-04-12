@@ -3,6 +3,7 @@ extern crate slog;
 #[macro_use]
 extern crate slog_scope;
 extern crate slog_term;
+extern crate slog_journald;
 
 extern crate argparse;
 extern crate ini;
@@ -25,6 +26,7 @@ use std::sync::{Mutex,Arc};
 use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
 use ini::Ini;
 use slog::Drain;
+use slog_journald::JournaldDrain;
 use tokio_core::reactor::{Core,Handle};
 use futures::{Future,Stream};
 use futures::future;
@@ -88,14 +90,20 @@ fn main() {
         ap.parse_args_or_exit();
     }
     // set up logging
-    let plain = slog_term::PlainSyncDecorator::new(std::io::stdout());
-    let log = slog::Logger::root(
-        slog_term::FullFormat::new(plain)
-        .build().fuse(), slog_o!()
-    );
-
     // Need to keep _guard alive for as long as we want to log
-    let _guard = slog_scope::set_global_logger(log);
+    let _guard = match options.systemd {
+        false => {
+            let plain = slog_term::PlainSyncDecorator::new(std::io::stdout());
+            let drain = slog_term::FullFormat::new(plain).build().fuse();
+            let log = slog::Logger::root(drain, slog_o!());
+            slog_scope::set_global_logger(log)
+        }
+        true => {
+            let drain = JournaldDrain.ignore_res();
+            let log = slog::Logger::root(drain, slog_o!());
+            slog_scope::set_global_logger(log)
+        }
+    };
     slog_scope::scope(&slog_scope::logger().new(slog_o!()), || {
 
         let force_wpad_url = if let Some(file) = options.config {
