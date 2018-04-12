@@ -49,8 +49,12 @@ env: requirements.txt pacparser
 run: env
 	env/bin/python main.py -F DIRECT -p $(TESTPORT)
 
+.PHONY: cargo-build
+cargo-build:
+	cargo build
+
 .PHONY: check
-check:
+check: cargo-build
 	python3 test/runtests.py
 
 .PHONY: check-prev-proxies
