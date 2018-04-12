@@ -72,7 +72,7 @@ fn main() {
         ");
         ap.refer(&mut options.config)
             .add_option(&["-c", "--config"], StoreOption,
-            "Path to configuration file [not implemented]");
+            "Path to configuration file");
         ap.refer(&mut options.port)
             .metavar("PORT")
             .add_option(&["-p","--port"], Store,
@@ -87,7 +87,7 @@ fn main() {
             "One of DEBUG/INFO/WARNING/ERROR");
         ap.refer(&mut options.systemd)
             .add_option(&["--systemd"], StoreTrue,
-            "Assume running under systemd (for logging and readiness notification) [not implemented]");
+            "Assume running under systemd (for logging and readiness notification)");
         ap.parse_args_or_exit();
     }
     // set up logging
