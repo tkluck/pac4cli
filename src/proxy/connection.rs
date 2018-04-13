@@ -171,8 +171,8 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
             self.t_to_s_buf.with_next_writeable_chunk(|next_writeable_chunk| {
                 match t.poll_read(next_writeable_chunk) {
                     Ok(Async::Ready(0)) => {
-                        t.shutdown();
-                        s.shutdown();
+                        t.shutdown().ok();
+                        s.shutdown().ok();
                         Err(zero_op())
                     }
                     Ok(Async::Ready(n)) => {
@@ -183,8 +183,8 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
                         Ok(0)
                     }
                     Err(err) => {
-                        t.shutdown();
-                        s.shutdown();
+                        t.shutdown().ok();
+                        s.shutdown().ok();
                         Err(err)
                     }
                 }
@@ -192,8 +192,8 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
             self.t_to_s_buf.with_next_readable_chunk(|next_readable_chunk| {
                 match s.poll_write(next_readable_chunk) {
                     Ok(Async::Ready(0)) => {
-                        t.shutdown();
-                        s.shutdown();
+                        t.shutdown().ok();
+                        s.shutdown().ok();
                         Err(zero_op())
                     }
                     Ok(Async::Ready(n)) => {
@@ -204,8 +204,8 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
                         Ok(0)
                     },
                     Err(err) => {
-                        t.shutdown();
-                        s.shutdown();
+                        t.shutdown().ok();
+                        s.shutdown().ok();
                         Err(err)
                     }
                 }
@@ -213,8 +213,8 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
             self.s_to_t_buf.with_next_writeable_chunk(|next_writeable_chunk| {
                 match s.poll_read(next_writeable_chunk) {
                     Ok(Async::Ready(0)) => {
-                        t.shutdown();
-                        s.shutdown();
+                        t.shutdown().ok();
+                        s.shutdown().ok();
                         Err(zero_op())
                     }
                     Ok(Async::Ready(n)) => {
@@ -223,8 +223,8 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
                     }
                     Ok(Async::NotReady) => Ok(0),
                     Err(err) => {
-                        t.shutdown();
-                        s.shutdown();
+                        t.shutdown().ok();
+                        s.shutdown().ok();
                         Err(err)
                     }
                 }
@@ -232,8 +232,8 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
             self.s_to_t_buf.with_next_readable_chunk(|next_readable_chunk| {
                 match t.poll_write(next_readable_chunk) {
                     Ok(Async::Ready(0)) => {
-                        t.shutdown();
-                        s.shutdown();
+                        t.shutdown().ok();
+                        s.shutdown().ok();
                         Err(zero_op())
                     }
                     Ok(Async::Ready(n)) => {
@@ -242,8 +242,8 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
                     }
                     Ok(Async::NotReady) => Ok(0),
                     Err(err) => {
-                        t.shutdown();
-                        s.shutdown();
+                        t.shutdown().ok();
+                        s.shutdown().ok();
                         Err(err)
                     }
                 }
