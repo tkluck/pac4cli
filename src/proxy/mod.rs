@@ -1,5 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
-use std::sync::{Mutex,Arc};
+use std::sync::Arc;
 
 use tokio;
 use tokio::io;
@@ -15,40 +15,28 @@ mod protocol;
 
 use self::connection::two_way_pipe;
 use self::protocol::Preamble;
-use pacparser::{ProxySuggestion,find_proxy_suggestions};
-use wpad;
+use pacparser::ProxySuggestion;
 
-fn find_proxy(url: &str, host: &str, forced_proxy: Option<ProxySuggestion>, auto_config_state: Arc<Mutex<wpad::AutoConfigState>>) -> ProxySuggestion {
-    let state = auto_config_state.lock().expect("Issue locking auto config state");
-    match *state {
-        wpad::AutoConfigState::Discovering => ProxySuggestion::Direct,
-        wpad::AutoConfigState::Direct => ProxySuggestion::Direct,
-        wpad::AutoConfigState::PAC => match forced_proxy {
-            Some(ref proxy_suggestion) => proxy_suggestion.clone(),
-            None => find_proxy_suggestions(url, host).remove(0),
-        },
-    }
-}
-
-pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_config_state: Arc<Mutex<wpad::AutoConfigState>>) -> Box<Future<Item=(),Error=()>+Send> {
+pub fn create_server<F>(port: u16, find_proxy: F) -> Box<Future<Item=(),Error=()>+Send>
+    where F: 'static+Send+Sync+Fn(&str, &str) -> ProxySuggestion
+{
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let listener = TcpListener::bind(&addr).unwrap();
+
+    // make a copy for the nested closure
+    let find_proxy = Arc::new(find_proxy);
 
     let server = listener.incoming().for_each(move |downstream_connection| {
         debug!("accepted socket; addr={:?}", downstream_connection.peer_addr().unwrap());
 
         // make a copy for the nested closure
-        let forced_proxy = forced_proxy.clone();
-        let auto_config_state = auto_config_state.clone();
+        let find_proxy = find_proxy.clone();
 
         let task = connection::Incoming::new(downstream_connection)
         .and_then(move |(incoming_result,downstream_connection)| {
             let error_future = |downstream_connection| {
                 Either::A(io::write_all(downstream_connection, b"<h1>Could not connect</h1>").map(|_| ()))
             };
-            // make a copy for the nested closure
-            let forced_proxy = forced_proxy.clone();
-            let auto_config_state = auto_config_state.clone();
             // First, find a hostname + url for doing the pacparser lookup
             let (ref url, ref host, port) =
                 if incoming_result.preamble.method == "CONNECT" {
@@ -69,7 +57,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
             let preamble_for_upstream : Option<Preamble>;
             let my_response_for_downstream : Option<&'static [u8]>;
 
-            match find_proxy(url, host, forced_proxy, auto_config_state) {
+            match find_proxy(url, host) {
                 ProxySuggestion::Direct => {
                     if incoming_result.preamble.method == "CONNECT" {
                         preamble_for_upstream = None;

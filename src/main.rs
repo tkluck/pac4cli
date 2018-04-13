@@ -24,7 +24,7 @@ use ini::Ini;
 use slog::Drain;
 use slog_journald::JournaldDrain;
 use tokio_core::reactor::Core;
-use futures::{Future,Stream};
+use futures::{future,Future,Stream};
 use tokio_signal::unix::{Signal, SIGHUP};
 
 mod pacparser;
@@ -32,7 +32,7 @@ mod proxy;
 mod wpad;
 mod systemd;
 
-use pacparser::ProxySuggestion;
+use pacparser::{ProxySuggestion,find_proxy_suggestions};
 use wpad::AutoConfigHandler;
 
 struct Options {
@@ -117,25 +117,46 @@ fn main() {
 
         let auto_config_handler = Rc::new(AutoConfigHandler::new());
 
-        let serve = {
-            proxy::create_server(options.port, options.force_proxy, auto_config_handler.get_state_ref())
+        let find_proxy = {
+            let auto_config_state = auto_config_handler.get_state_ref();
+            let forced_proxy = options.force_proxy.clone();
+            move |url: &str, host: &str| {
+                let state = auto_config_state.lock().expect("Issue locking auto config state");
+                match *state {
+                    wpad::AutoConfigState::Discovering => ProxySuggestion::Direct,
+                    wpad::AutoConfigState::Direct => ProxySuggestion::Direct,
+                    wpad::AutoConfigState::PAC => match forced_proxy {
+                        Some(ref proxy_suggestion) => proxy_suggestion.clone(),
+                        None => find_proxy_suggestions(url, host).remove(0),
+                    },
+                }
+            }
         };
 
-        let handle_sighups = {
-            let handle = core.handle();
-            let auto_config_handler = auto_config_handler.clone();
-            let force_wpad_url = force_wpad_url.clone();
-            Signal::new(SIGHUP, &handle).flatten_stream()
-            .map_err(|err| {
-                warn!("Error retrieving SIGHUPs: {:?}", err)
-            })
-            .for_each(move |_| {
-                info!("SIGHUP received");
-                auto_config_handler.find_wpad_config_future(&force_wpad_url, &handle)
-            })
-            .map_err(|err| {
-                warn!("Error handling SIGHUP: {:?}", err)
-            })
+        let serve = {
+            proxy::create_server(options.port, find_proxy)
+        };
+
+        let handle_sighups : Box<Future<Item=(),Error=()>> = {
+            if let None = options.force_proxy {
+                let handle = core.handle();
+                let auto_config_handler = auto_config_handler.clone();
+                let force_wpad_url = force_wpad_url.clone();
+                let task = Signal::new(SIGHUP, &handle).flatten_stream()
+                .map_err(|err| {
+                    warn!("Error retrieving SIGHUPs: {:?}", err)
+                })
+                .for_each(move |_| {
+                    info!("SIGHUP received");
+                    auto_config_handler.find_wpad_config_future(&force_wpad_url, &handle)
+                })
+                .map_err(|err| {
+                    warn!("Error handling SIGHUP: {:?}", err)
+                });
+                Box::new(task)
+            } else {
+                Box::new(future::ok(()))
+            }
         };
 
         let startup_config = auto_config_handler.find_wpad_config_future(&force_wpad_url, &core.handle());
