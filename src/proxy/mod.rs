@@ -16,21 +16,21 @@ mod protocol;
 use self::connection::two_way_pipe;
 use self::protocol::Preamble;
 use pacparser::{ProxySuggestion,find_proxy_suggestions};
-use ::AutoConfigState;
+use wpad;
 
-fn find_proxy(url: &str, host: &str, forced_proxy: Option<ProxySuggestion>, auto_config_state: Arc<Mutex<AutoConfigState>>) -> ProxySuggestion {
+fn find_proxy(url: &str, host: &str, forced_proxy: Option<ProxySuggestion>, auto_config_state: Arc<Mutex<wpad::AutoConfigState>>) -> ProxySuggestion {
     let state = auto_config_state.lock().expect("Issue locking auto config state");
     match *state {
-        AutoConfigState::Discovering => ProxySuggestion::Direct,
-        AutoConfigState::Direct => ProxySuggestion::Direct,
-        AutoConfigState::PAC => match forced_proxy {
+        wpad::AutoConfigState::Discovering => ProxySuggestion::Direct,
+        wpad::AutoConfigState::Direct => ProxySuggestion::Direct,
+        wpad::AutoConfigState::PAC => match forced_proxy {
             Some(ref proxy_suggestion) => proxy_suggestion.clone(),
             None => find_proxy_suggestions(url, host).remove(0),
         },
     }
 }
 
-pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_config_state: Arc<Mutex<AutoConfigState>>) -> Box<Future<Item=(),Error=()>+Send> {
+pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_config_state: Arc<Mutex<wpad::AutoConfigState>>) -> Box<Future<Item=(),Error=()>+Send> {
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let listener = TcpListener::bind(&addr).unwrap();
 

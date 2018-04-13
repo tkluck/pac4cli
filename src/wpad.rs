@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use std::collections::HashMap;
+use std::sync::{Mutex,Arc};
 
 use dbus;
 use dbus::{BusType,Connection,Message,Path};
@@ -10,6 +11,8 @@ use futures::future::{loop_fn,Either,Loop};
 use dbus_tokio::AConnection;
 use hyper;
 use hyper::{Client,StatusCode};
+
+use pacparser;
 
 fn get_list_of_paths<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<Future<Item=Vec<Path<'static>>, Error=dbus::Error>>
     where P: Into<Path<'static>> {
@@ -226,4 +229,55 @@ pub fn retrieve_first_working_url(handle: Handle, url_strings: Vec<String>) -> B
         }
     });
     return Box::new(task);
+}
+
+#[derive(Debug,Clone)]
+pub enum AutoConfigState {
+    Discovering,
+    Direct,
+    PAC,
+}
+
+pub struct AutoConfigHandler {
+    state: Arc<Mutex<AutoConfigState>>,
+}
+
+impl AutoConfigHandler {
+    pub fn new() -> Self {
+        AutoConfigHandler {
+            state: Arc::new(Mutex::new(AutoConfigState::Discovering)),
+        }
+    }
+
+    pub fn get_state_ref(&self) -> Arc<Mutex<AutoConfigState>> {
+        self.state.clone()
+    }
+
+    pub fn find_wpad_config_future(&self, force_wpad_url: &Option<String>, handle: &Handle) -> Box<Future<Item=(), Error=()>> {
+        let auto_config_state = self.get_state_ref();
+        let get_urls = if let &Some(ref url) = force_wpad_url {
+            Either::A(future::ok([url.clone()].to_vec()))
+        } else {
+            let handle = handle.clone();
+            Either::B(get_wpad_urls(handle))
+        };
+        let handle = handle.clone();
+        let task = get_urls
+        .and_then(|urls| {
+            retrieve_first_working_url(handle, urls)
+        })
+        .map(move |wpad| {
+            let mut state = auto_config_state.lock().expect("issue locking state");
+            *state = if let Some(ref script) = wpad {
+                match pacparser::parse_pac_string(script) {
+                    Ok(..) => AutoConfigState::PAC,
+                    Err(..) => AutoConfigState::Direct,
+                }
+            } else {
+                AutoConfigState::Direct
+            };
+            info!("AutoConfigState is now {:?}", *state)
+        });
+        Box::new(task)
+    }
 }

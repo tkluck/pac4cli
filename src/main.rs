@@ -17,16 +17,14 @@ extern crate dbus_tokio;
 extern crate tokio_signal;
 extern crate hyper;
 
-use std::sync::{Mutex,Arc};
+use std::rc::Rc;
 
 use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
 use ini::Ini;
 use slog::Drain;
 use slog_journald::JournaldDrain;
-use tokio_core::reactor::{Core,Handle};
+use tokio_core::reactor::Core;
 use futures::{Future,Stream};
-use futures::future;
-use futures::future::Either;
 use tokio_signal::unix::{Signal, SIGHUP};
 
 mod pacparser;
@@ -35,6 +33,7 @@ mod wpad;
 mod systemd;
 
 use pacparser::ProxySuggestion;
+use wpad::AutoConfigHandler;
 
 struct Options {
     config: Option<String>,
@@ -42,13 +41,6 @@ struct Options {
     force_proxy: Option<ProxySuggestion>,
     loglevel: slog::FilterLevel,
     systemd: bool,
-}
-
-#[derive(Debug,Clone)]
-pub enum AutoConfigState {
-    Discovering,
-    Direct,
-    PAC,
 }
 
 fn main() {
@@ -121,46 +113,17 @@ fn main() {
 
         pacparser::init().expect("Failed to initialize pacparser");
 
-        let auto_config_state = Arc::new(Mutex::new(AutoConfigState::Discovering));
-
         let mut core = Core::new().unwrap();
 
-        fn find_wpad_config_future(force_wpad_url: &Option<String>, auto_config_state: &Arc<Mutex<AutoConfigState>>, handle: &Handle) -> Box<Future<Item=(), Error=()>> {
-            let auto_config_state = auto_config_state.clone();
-            let get_urls = if let &Some(ref url) = force_wpad_url {
-                Either::A(future::ok([url.clone()].to_vec()))
-            } else {
-                let handle = handle.clone();
-                Either::B(wpad::get_wpad_urls(handle))
-            };
-            let handle = handle.clone();
-            let task = get_urls
-            .and_then(|urls| {
-                wpad::retrieve_first_working_url(handle, urls)
-            })
-            .map(move |wpad| {
-                let mut state = auto_config_state.lock().expect("issue locking state");
-                *state = if let Some(ref script) = wpad {
-                    match pacparser::parse_pac_string(script) {
-                        Ok(..) => AutoConfigState::PAC,
-                        Err(..) => AutoConfigState::Direct,
-                    }
-                } else {
-                    AutoConfigState::Direct
-                };
-                info!("State is now {:?}", *state)
-            });
-            Box::new(task)
-        }
+        let auto_config_handler = Rc::new(AutoConfigHandler::new());
 
         let serve = {
-            let auto_config_state = auto_config_state.clone();
-            proxy::create_server(options.port, options.force_proxy, auto_config_state)
+            proxy::create_server(options.port, options.force_proxy, auto_config_handler.get_state_ref())
         };
 
         let handle_sighups = {
             let handle = core.handle();
-            let auto_config_state = auto_config_state.clone();
+            let auto_config_handler = auto_config_handler.clone();
             let force_wpad_url = force_wpad_url.clone();
             Signal::new(SIGHUP, &handle).flatten_stream()
             .map_err(|err| {
@@ -168,14 +131,16 @@ fn main() {
             })
             .for_each(move |_| {
                 info!("SIGHUP received");
-                find_wpad_config_future(&force_wpad_url, &auto_config_state, &handle)
+                auto_config_handler.find_wpad_config_future(&force_wpad_url, &handle)
             })
             .map_err(|err| {
                 warn!("Error handling SIGHUP: {:?}", err)
             })
         };
 
-        let start_server = find_wpad_config_future(&force_wpad_url, &auto_config_state, &core.handle())
+        let startup_config = auto_config_handler.find_wpad_config_future(&force_wpad_url, &core.handle());
+
+        let start_server = startup_config
         .and_then(|_| {
             serve.join(handle_sighups)
         })
