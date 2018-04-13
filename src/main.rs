@@ -17,10 +17,6 @@ extern crate dbus_tokio;
 extern crate tokio_signal;
 extern crate hyper;
 
-// Needed since https://github.com/tokio-rs/tokio/commit/a6b307cfbefb568bd79eaf1d91edf9ab52d18533#diff-b4aea3e418ccdb71239b96952d9cddb6
-// is not released yet.
-extern crate tokio_io;
-
 use std::sync::{Mutex,Arc};
 
 use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};

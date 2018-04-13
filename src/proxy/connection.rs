@@ -1,10 +1,6 @@
 use tokio::io;
 use tokio::prelude::*;
 
-// Needed since https://github.com/tokio-rs/tokio/commit/a6b307cfbefb568bd79eaf1d91edf9ab52d18533#diff-b4aea3e418ccdb71239b96952d9cddb6
-// is not released yet.
-use tokio_io::io::{ReadHalf,WriteHalf};
-
 use std::mem;
 use std;
 use std::cmp::min;
