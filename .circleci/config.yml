@@ -7,7 +7,7 @@ jobs:
       - checkout
       - run: apt-get update
       - run: apt-get install pacparser libsystemd-dev libdbus-glib-1-dev libgirepository1.0-dev libdbus-1-dev dbus netcat-openbsd python3-pip
-        run: pip3 install dbus-python python-dbusmock plumbum
+      - run: pip3 install dbus-python python-dbusmock plumbum
       - run: make check
 workflows:
   version: 2
