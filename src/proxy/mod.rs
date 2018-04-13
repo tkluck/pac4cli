@@ -42,90 +42,90 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
         let auto_config_state = auto_config_state.clone();
 
         let task = connection::Incoming::new(downstream_connection)
-            .and_then(move |(incoming_result,downstream_connection)| {
-                // make a copy for the nested closure
-                let forced_proxy = forced_proxy.clone();
-                let auto_config_state = auto_config_state.clone();
-                // First, find a hostname + url for doing the pacparser lookup
-                let (ref url, ref host, port) =
+        .and_then(move |(incoming_result,downstream_connection)| {
+            // make a copy for the nested closure
+            let forced_proxy = forced_proxy.clone();
+            let auto_config_state = auto_config_state.clone();
+            // First, find a hostname + url for doing the pacparser lookup
+            let (ref url, ref host, port) =
+                if incoming_result.preamble.method == "CONNECT" {
+                    let mut parts = incoming_result.preamble.uri.split(":");
+                    let host = String::from(parts.next().expect("No host in connect spec"));
+                    let port = parts.next().expect("No port in connect spec").parse::<u16>().expect("Invalid port in connect spec");
+                    (host.clone(), host, port)
+                } else {
+                    let uri =  Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
+                    let host = uri.host.expect("No host in URI; aborting");
+                    let default_port : u16 = if uri.scheme == "https" { 443 } else { 80 };
+                    let port = uri.port.unwrap_or(default_port);
+                    (incoming_result.preamble.uri.clone(), host, port)
+                };
+
+            let upstream_addr : SocketAddr;
+            let preamble_for_upstream : Option<Preamble>;
+            let my_response_for_downstream : Option<&'static [u8]>;
+
+            match find_proxy(url, host, forced_proxy, auto_config_state) {
+                ProxySuggestion::Direct => {
                     if incoming_result.preamble.method == "CONNECT" {
-                        let mut parts = incoming_result.preamble.uri.split(":");
-                        let host = String::from(parts.next().expect("No host in connect spec"));
-                        let port = parts.next().expect("No port in connect spec").parse::<u16>().expect("Invalid port in connect spec");
-                        (host.clone(), host, port)
+                        preamble_for_upstream = None;
+                        my_response_for_downstream = Some(b"HTTP/1.1 200 OK\r\n\r\n");
                     } else {
                         let uri =  Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
-                        let host = uri.host.expect("No host in URI; aborting");
-                        let default_port : u16 = if uri.scheme == "https" { 443 } else { 80 };
-                        let port = uri.port.unwrap_or(default_port);
-                        (incoming_result.preamble.uri.clone(), host, port)
-                    };
-
-                let upstream_addr : SocketAddr;
-                let preamble_for_upstream : Option<Preamble>;
-                let my_response_for_downstream : Option<&'static [u8]>;
-
-                match find_proxy(url, host, forced_proxy, auto_config_state) {
-                    ProxySuggestion::Direct => {
-                        if incoming_result.preamble.method == "CONNECT" {
-                            preamble_for_upstream = None;
-                            my_response_for_downstream = Some(b"HTTP/1.1 200 OK\r\n\r\n");
-                        } else {
-                            let uri =  Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
-                            let mut p = incoming_result.preamble.clone();
-                            p.uri = format!("{}{}", uri.path.unwrap_or(String::from("/")), uri.query.unwrap_or(String::from("")));
-                            preamble_for_upstream = Some(p);
-                            my_response_for_downstream = None;
-                        }
-                        upstream_addr = (host.as_str(), port).to_socket_addrs().expect("unparseable host").next().unwrap();
-                    }
-                    ProxySuggestion::Proxy{ref host, ref port} => {
-                        preamble_for_upstream = Some(incoming_result.preamble);
+                        let mut p = incoming_result.preamble.clone();
+                        p.uri = format!("{}{}", uri.path.unwrap_or(String::from("/")), uri.query.unwrap_or(String::from("")));
+                        preamble_for_upstream = Some(p);
                         my_response_for_downstream = None;
-                        upstream_addr = (host.as_str(), port.unwrap_or(3128)).to_socket_addrs().expect("unparseable host").next().unwrap();
                     }
+                    upstream_addr = (host.as_str(), port).to_socket_addrs().expect("unparseable host").next().unwrap();
                 }
-                debug!("Host: {}, upstream addr: {:?}", host, upstream_addr);
+                ProxySuggestion::Proxy{ref host, ref port} => {
+                    preamble_for_upstream = Some(incoming_result.preamble);
+                    my_response_for_downstream = None;
+                    upstream_addr = (host.as_str(), port.unwrap_or(3128)).to_socket_addrs().expect("unparseable host").next().unwrap();
+                }
+            }
+            debug!("Host: {}, upstream addr: {:?}", host, upstream_addr);
 
-                TcpStream::connect(&upstream_addr)
-                    .and_then(move |upstream_connection| {
-                        debug!("Connected to upstream");
-                        let write_upstream =
-                            if let Some(preamble) = preamble_for_upstream {
-                                Either::A(preamble.write(upstream_connection)
-                                        .map(|(_preamble, upstream_connection)| {
-                                            trace!("Written preamble to upstream");
-                                            upstream_connection
-                                        }))
-                            } else {
-                                Either::B(future::ok(upstream_connection))
-                            };
-                        let write_downstream =
-                            if let Some(response) = my_response_for_downstream {
-                                Either::A(io::write_all(downstream_connection, response)
-                                        .map(|(downstream_connection, _response)| {
-                                            trace!("Written my response to downstream");
-                                            downstream_connection
-                                        }))
-                            } else {
-                                Either::B(future::ok(downstream_connection))
-                            };
-                        write_upstream.join(write_downstream)
-                    })
-                    .and_then(|(upstream_connection, downstream_connection)| {
-                        trace!("Starting two-way pipe");
-                        two_way_pipe(upstream_connection, downstream_connection)
-                    })
-                    .and_then(|_| {
-                        debug!("Successfully served request");
-                        Ok(())
-                    })
+            TcpStream::connect(&upstream_addr)
+            .and_then(move |upstream_connection| {
+                debug!("Connected to upstream");
+                let write_upstream =
+                    if let Some(preamble) = preamble_for_upstream {
+                        Either::A(preamble.write(upstream_connection)
+                        .map(|(_preamble, upstream_connection)| {
+                            trace!("Written preamble to upstream");
+                            upstream_connection
+                        }))
+                    } else {
+                        Either::B(future::ok(upstream_connection))
+                    };
+                let write_downstream =
+                    if let Some(response) = my_response_for_downstream {
+                        Either::A(io::write_all(downstream_connection, response)
+                        .map(|(downstream_connection, _response)| {
+                            trace!("Written my response to downstream");
+                            downstream_connection
+                        }))
+                    } else {
+                        Either::B(future::ok(downstream_connection))
+                    };
+                write_upstream.join(write_downstream)
             })
-            .map_err(|err| {
-                // this may happen e.g. if the connection gets lost; not usually something
-                // we have to log
-                debug!("connection error: {:?}", err);
-            });
+            .and_then(|(upstream_connection, downstream_connection)| {
+                trace!("Starting two-way pipe");
+                two_way_pipe(upstream_connection, downstream_connection)
+            })
+            .and_then(|_| {
+                debug!("Successfully served request");
+                Ok(())
+            })
+        })
+        .map_err(|err| {
+            // this may happen e.g. if the connection gets lost; not usually something
+            // we have to log
+            debug!("connection error: {:?}", err);
+        });
 
         // Spawn a new task that processes the socket:
         tokio::spawn(task);
