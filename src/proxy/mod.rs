@@ -43,6 +43,9 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
 
         let task = connection::Incoming::new(downstream_connection)
         .and_then(move |(incoming_result,downstream_connection)| {
+            let error_future = |downstream_connection| {
+                Either::A(io::write_all(downstream_connection, b"<h1>Could not connect</h1>").map(|_| ()))
+            };
             // make a copy for the nested closure
             let forced_proxy = forced_proxy.clone();
             let auto_config_state = auto_config_state.clone();
@@ -72,7 +75,10 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                         preamble_for_upstream = None;
                         my_response_for_downstream = Some(b"HTTP/1.1 200 OK\r\n\r\n");
                     } else {
-                        let uri =  Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
+                        let uri =  match Uri::new(&incoming_result.preamble.uri) {
+                            Ok(uri) => uri,
+                            Err(_) => return error_future(downstream_connection),
+                        };
                         let mut p = incoming_result.preamble.clone();
                         p.uri = format!("{}{}", uri.path.unwrap_or(String::from("/")), uri.query.unwrap_or(String::from("")));
                         preamble_for_upstream = Some(p);
@@ -90,13 +96,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
             let upstream_socket_addr = match upstream_address {
                 (host, port) => match (host.as_str(), port).to_socket_addrs() {
                     Ok(mut iter) => iter.next().expect("Parsed address successfully, but no result??"),
-                    Err(_) => {
-                        let error_message_future = io::write_all(downstream_connection, b"<h1>Could not connect</h1>")
-                        .map(|_| {
-                            debug!("successfully wrote error message");
-                        });
-                        return Either::A(error_message_future);
-                    }
+                    Err(_) => return error_future(downstream_connection),
                 }
             };
             debug!("Upstream resolved to: {:?}", upstream_socket_addr);
