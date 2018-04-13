@@ -61,7 +61,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                     (incoming_result.preamble.uri.clone(), host, port)
                 };
 
-            let upstream_addr : SocketAddr;
+            let upstream_address : (String, u16);
             let preamble_for_upstream : Option<Preamble>;
             let my_response_for_downstream : Option<&'static [u8]>;
 
@@ -77,17 +77,30 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                         preamble_for_upstream = Some(p);
                         my_response_for_downstream = None;
                     }
-                    upstream_addr = (host.as_str(), port).to_socket_addrs().expect("unparseable host").next().unwrap();
+                    upstream_address = (host.clone(), port);
                 }
-                ProxySuggestion::Proxy{ref host, ref port} => {
+                ProxySuggestion::Proxy{host, port} => {
                     preamble_for_upstream = Some(incoming_result.preamble);
                     my_response_for_downstream = None;
-                    upstream_addr = (host.as_str(), port.unwrap_or(3128)).to_socket_addrs().expect("unparseable host").next().unwrap();
+                    upstream_address = (host, port.unwrap_or(3128))
                 }
             }
-            debug!("Host: {}, upstream addr: {:?}", host, upstream_addr);
 
-            TcpStream::connect(&upstream_addr)
+            let upstream_socket_addr = match upstream_address {
+                (host, port) => match (host.as_str(), port).to_socket_addrs() {
+                    Ok(mut iter) => iter.next().expect("Parsed address successfully, but no result??"),
+                    Err(_) => {
+                        let error_message_future = io::write_all(downstream_connection, b"<h1>Could not connect</h1>")
+                        .map(|_| {
+                            debug!("successfully wrote error message");
+                        });
+                        return Either::A(error_message_future);
+                    }
+                }
+            };
+            debug!("Upstream resolved to: {:?}", upstream_socket_addr);
+
+            let data_exchange_future = TcpStream::connect(&upstream_socket_addr)
             .and_then(move |upstream_connection| {
                 debug!("Connected to upstream");
                 let write_upstream =
@@ -116,15 +129,13 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                 trace!("Starting two-way pipe");
                 two_way_pipe(upstream_connection, downstream_connection)
             })
-            .and_then(|_| {
+            .map(|_| {
                 debug!("Successfully served request");
-                Ok(())
-            })
+            });
+            Either::B(data_exchange_future)
         })
         .map_err(|err| {
-            // this may happen e.g. if the connection gets lost; not usually something
-            // we have to log
-            debug!("connection error: {:?}", err);
+            debug!("error parsing incoming request: {:?}", err);
         });
 
         // Spawn a new task that processes the socket:
