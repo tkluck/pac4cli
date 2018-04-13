@@ -60,6 +60,7 @@ pub fn create_server(port: u16, forced_proxy: Option<ProxySuggestion>, auto_conf
                     let port = uri.port.unwrap_or(default_port);
                     (incoming_result.preamble.uri.clone(), host, port)
                 };
+            debug!("Destination is {}:{}", host, port);
 
             let upstream_address : (String, u16);
             let preamble_for_upstream : Option<Preamble>;
