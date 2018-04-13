@@ -95,9 +95,9 @@ struct WPADDiscoverer {
 }
 
 impl WPADDiscoverer {
-    fn new(handle: Handle) -> Self {
+    fn new(handle: &Handle) -> Self {
         let c = Rc::new(Connection::get_private(BusType::System).unwrap());
-        let aconn = AConnection::new(c.clone(), handle).unwrap();
+        let aconn = AConnection::new(c.clone(), handle.clone()).unwrap();
         Self {
             aconn,
             active_connections: Vec::new(),
@@ -175,7 +175,7 @@ impl Future for WPADDiscoverer {
      }
  }
 
-pub fn get_wpad_urls(handle: Handle) -> Box<Future<Item=Vec<String>,Error=()>> {
+pub fn get_wpad_urls(handle: &Handle) -> Box<Future<Item=Vec<String>,Error=()>> {
 
     let task = WPADDiscoverer::new(handle)
     .map_err(|dbus_err| {
@@ -194,9 +194,9 @@ pub fn get_wpad_urls(handle: Handle) -> Box<Future<Item=Vec<String>,Error=()>> {
     return Box::new(task);
 }
 
-pub fn retrieve_first_working_url(handle: Handle, url_strings: Vec<String>) -> Box<Future<Item=Option<String>,Error=()>> {
+pub fn retrieve_first_working_url(handle: &Handle, url_strings: Vec<String>) -> Box<Future<Item=Option<String>,Error=()>> {
 
-    let http_client = Client::new(&handle);
+    let http_client = Client::new(handle);
 
     let urls :Vec<hyper::Uri> = url_strings.iter().filter_map(|url| url.parse::<hyper::Uri>().ok()).collect();
     debug!("Urls: {:?}", urls);
@@ -253,31 +253,21 @@ impl AutoConfigHandler {
         self.state.clone()
     }
 
-    pub fn find_wpad_config_future(&self, force_wpad_url: &Option<String>, handle: &Handle) -> Box<Future<Item=(), Error=()>> {
+    pub fn set_current_wpad_script(&self, wpad: Option<String>) {
         let auto_config_state = self.get_state_ref();
-        let get_urls = if let &Some(ref url) = force_wpad_url {
-            Either::A(future::ok([url.clone()].to_vec()))
+        Self::set_current_wpad_script_internal(auto_config_state, wpad);
+    }
+
+    fn set_current_wpad_script_internal(auto_config_state: Arc<Mutex<AutoConfigState>>, wpad: Option<String>) {
+        let mut state = auto_config_state.lock().expect("issue locking state");
+        *state = if let Some(ref script) = wpad {
+            match pacparser::parse_pac_string(script) {
+                Ok(..) => AutoConfigState::PAC,
+                Err(..) => AutoConfigState::Direct,
+            }
         } else {
-            let handle = handle.clone();
-            Either::B(get_wpad_urls(handle))
+            AutoConfigState::Direct
         };
-        let handle = handle.clone();
-        let task = get_urls
-        .and_then(|urls| {
-            retrieve_first_working_url(handle, urls)
-        })
-        .map(move |wpad| {
-            let mut state = auto_config_state.lock().expect("issue locking state");
-            *state = if let Some(ref script) = wpad {
-                match pacparser::parse_pac_string(script) {
-                    Ok(..) => AutoConfigState::PAC,
-                    Err(..) => AutoConfigState::Direct,
-                }
-            } else {
-                AutoConfigState::Direct
-            };
-            info!("AutoConfigState is now {:?}", *state)
-        });
-        Box::new(task)
+        info!("AutoConfigState is now {:?}", *state)
     }
 }
