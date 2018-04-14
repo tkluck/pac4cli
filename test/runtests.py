@@ -150,11 +150,11 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
         with plumbum.local.cwd(testdir / "wpadserver"):
             static_server = python["-m", "http.server", 8080] & BG(stdout=sys.stdout, stderr=sys.stderr)
 
-        sleep(3)
-
         # mock upstream proxies
         fake_proxy_1 = (serve_once[23130] < testdir / "fake-proxy-1-response") & BG
         fake_proxy_2 = (serve_once[23131] < testdir / "fake-proxy-2-response") & BG
+
+        sleep(3)
 
         # proxy getting its config from DHCP
         with plumbum.local.env(DBUS_SYSTEM_BUS_ADDRESS=os.environ['DBUS_SYSTEM_BUS_ADDRESS']):
