@@ -6,7 +6,7 @@ jobs:
     steps:
       - checkout
       - run: apt update
-      - run: apt install --yes libpacparser-dev virtualenv libsystemd-dev libdbus-glib-1-dev libgirepository1.0-dev libdbus-1-dev dbus netcat-openbsd
+      - run: apt install --yes libpacparser-dev virtualenv libsystemd-dev libdbus-glib-1-dev libgirepository1.0-dev libdbus-1-dev dbus netcat-openbsd python3-dev
       - run: make check
 workflows:
   version: 2
