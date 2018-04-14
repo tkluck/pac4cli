@@ -134,6 +134,9 @@ impl<T> RingBuffer<T> {
         }
         Ok(())
     }
+    pub fn len(&self) -> usize {
+        self.length
+    }
 }
 
 const RINGBUFFER_SIZE : usize = 64*1024;
@@ -168,12 +171,13 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
         let t = &mut self.t;
         loop {
             let mut none_are_ready = true;
+
+            let mut t_readable = true;
             self.t_to_s_buf.with_next_writeable_chunk(|next_writeable_chunk| {
                 match t.poll_read(next_writeable_chunk) {
                     Ok(Async::Ready(0)) => {
-                        t.shutdown().ok();
-                        s.shutdown().ok();
-                        Err(zero_op())
+                        t_readable = false;
+                        Ok(0)
                     }
                     Ok(Async::Ready(n)) => {
                         none_are_ready = false;
@@ -210,12 +214,12 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
                     }
                 }
             })?;
+            let mut s_readable = true;
             self.s_to_t_buf.with_next_writeable_chunk(|next_writeable_chunk| {
                 match s.poll_read(next_writeable_chunk) {
                     Ok(Async::Ready(0)) => {
-                        t.shutdown().ok();
-                        s.shutdown().ok();
-                        Err(zero_op())
+                        s_readable = false;
+                        Ok(0)
                     }
                     Ok(Async::Ready(n)) => {
                         none_are_ready = false;
@@ -248,6 +252,12 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
                     }
                 }
             })?;
+            if !s_readable && self.s_to_t_buf.len() == 0 {
+                return Ok(Async::Ready(()))
+            }
+            if !t_readable && self.t_to_s_buf.len() == 0 {
+                return Ok(Async::Ready(()))
+            }
             if none_are_ready {
                 return Ok(Async::NotReady)
             }
