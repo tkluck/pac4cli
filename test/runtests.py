@@ -21,9 +21,9 @@ from time import sleep
 import plumbum
 from plumbum import FG, BG
 
-from plumbum.cmd import curl, python3
+from plumbum.cmd import curl
 
-python     = python3
+python     = plumbum.local["env/bin/python"]
 serve_once = plumbum.local["nc.openbsd"]["-C", "-l", "-q", 20, "-p"]
 pac4cli    = plumbum.local["target/debug/pac4cli"]
 
@@ -148,7 +148,9 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
 
         # server for wpad.dat
         with plumbum.local.cwd(testdir / "wpadserver"):
-            static_server = python["-m", "http.server", 8080] & BG
+            static_server = python["-m", "http.server", 8080] & BG(stdout=sys.stdout, stderr=sys.stderr)
+
+        sleep(3)
 
         # mock upstream proxies
         fake_proxy_1 = (serve_once[23130] < testdir / "fake-proxy-1-response") & BG
