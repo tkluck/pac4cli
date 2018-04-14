@@ -18,10 +18,9 @@ pythonsitedir = "$(shell $(PYTHON) -c "from distutils.sysconfig import get_pytho
 default:
 	@echo Nothing to build\; run make install.
 
-.PHONY: pacparser
 pacparser:
 	curl -L https://github.com/pacparser/pacparser/archive/1.3.7.tar.gz | tar -xz
-	mv pacparser-1.3.7 pacparser
+	mv -T pacparser-1.3.7 pacparser
 
 .PHONY: install-python-deps
 install-python-deps: requirements.txt pacparser
@@ -35,7 +34,6 @@ install-python-deps: requirements.txt pacparser
 	pip3 install -r requirements.txt
 	PYTHON=$(PYTHON) make -C pacparser/src install-pymod
 
-.PHONY: env
 env: requirements.txt pacparser
 	virtualenv -p $(PYTHON) env
 	env/bin/pip install -r requirements.txt
@@ -44,6 +42,7 @@ env: requirements.txt pacparser
 		env/bin/pip install txdbus;			\
 	fi
 	PYTHON=`pwd`/env/bin/python make -C pacparser/src install-pymod
+	touch env
 
 .PHONY: run
 run: env
