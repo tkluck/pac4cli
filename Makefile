@@ -77,7 +77,7 @@ endif
 install-service: check-prev-proxies
 ifeq ($(OS),Linux)
 	install -D -m 644 pac4cli.service $(DESTDIR)$(libdir)/systemd/system/pac4cli.service
-	
+
 	@sed -i -e 's@/usr/local/bin@'"$(bindir)"'@g' $(DESTDIR)$(libdir)/systemd/system/pac4cli.service
 
 	install -D -m 755 trigger-pac4cli $(DESTDIR)/etc/NetworkManager/dispatcher.d/trigger-pac4cli
@@ -125,4 +125,3 @@ clean:
 	rm -rf env
 	rm -rf pacparser
 	rm -rf __pycache__
-
