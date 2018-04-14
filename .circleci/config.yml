@@ -5,10 +5,8 @@ jobs:
       - image: rust
     steps:
       - checkout
-      - run: apt-get update
-      - run: apt-get install virtualenv libsystemd-dev libdbus-glib-1-dev libgirepository1.0-dev libdbus-1-dev dbus netcat-openbsd
-      - run: make pacparser
-      - run: make -C parparser/src install
+      - run: apt update
+      - run: apt install --yes libpacparser-dev virtualenv libsystemd-dev libdbus-glib-1-dev libgirepository1.0-dev libdbus-1-dev dbus netcat-openbsd
       - run: make check
 workflows:
   version: 2
