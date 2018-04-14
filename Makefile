@@ -121,6 +121,7 @@ uninstall:
 
 .PHONY: clean
 clean:
+	cargo clean
 	rm -rf env
 	rm -rf pacparser
 	rm -rf __pycache__
