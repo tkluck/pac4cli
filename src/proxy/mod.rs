@@ -55,6 +55,7 @@ pub fn create_server<F>(port: u16, find_proxy: F) -> Box<Future<Item=(),Error=()
 
             let upstream_address : (String, u16);
             let preamble_for_upstream : Option<Preamble>;
+            let buffered_for_upstream : Vec<u8>;
             let my_response_for_downstream : Option<&'static [u8]>;
 
             match find_proxy(url, host) {
@@ -67,15 +68,17 @@ pub fn create_server<F>(port: u16, find_proxy: F) -> Box<Future<Item=(),Error=()
                             Ok(uri) => uri,
                             Err(_) => return error_future(downstream_connection),
                         };
-                        let mut p = incoming_result.preamble.clone();
+                        let mut p = incoming_result.preamble;
                         p.uri = format!("{}{}", uri.path.unwrap_or(String::from("/")), uri.query.unwrap_or(String::from("")));
                         preamble_for_upstream = Some(p);
                         my_response_for_downstream = None;
                     }
+                    buffered_for_upstream = incoming_result.buffered;
                     upstream_address = (host.clone(), port);
                 }
                 ProxySuggestion::Proxy{host, port} => {
                     preamble_for_upstream = Some(incoming_result.preamble);
+                    buffered_for_upstream = incoming_result.buffered;
                     my_response_for_downstream = None;
                     upstream_address = (host, port.unwrap_or(3128))
                 }
@@ -95,7 +98,10 @@ pub fn create_server<F>(port: u16, find_proxy: F) -> Box<Future<Item=(),Error=()
                 let write_upstream =
                     if let Some(preamble) = preamble_for_upstream {
                         Either::A(preamble.write(upstream_connection)
-                        .map(|(_preamble, upstream_connection)| {
+                        .and_then(|(_preamble, upstream_connection)| {
+                            io::write_all(upstream_connection, buffered_for_upstream)
+                        })
+                        .map(|(upstream_connection, _buffered_for_upstream)| {
                             trace!("Written preamble to upstream");
                             upstream_connection
                         }))
