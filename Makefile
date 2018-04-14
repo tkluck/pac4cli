@@ -54,8 +54,8 @@ cargo-build:
 	cargo build
 
 .PHONY: check
-check: cargo-build
-	python3 test/runtests.py
+check: env cargo-build
+	env/bin/python test/runtests.py
 
 .PHONY: check-prev-proxies
 check-prev-proxies:
