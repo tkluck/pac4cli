@@ -81,7 +81,7 @@ impl<IO: AsyncRead> Future for Incoming<IO> {
                     method,
                     uri,
                     http_version,
-                    headers: lines.map(|l| { String::from(l) }).collect(),
+                    headers: lines.map(String::from).collect(),
                 },
                 buffered: self.buffer[preamble_end+4..self.position].to_vec(),
             },
