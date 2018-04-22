@@ -90,7 +90,7 @@ impl<IO: AsyncRead> Future for Incoming<IO> {
     }
 }
 
-const RINGBUFFER_SIZE : usize = 64*1024;
+const RINGBUFFER_SIZE: usize = 64*1024;
 
 pub struct TwoWayPipe<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> {
     t: T,
