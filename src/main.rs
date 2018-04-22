@@ -28,6 +28,7 @@ use futures::{future,Future,Stream};
 use futures::future::Either;
 use tokio_signal::unix::{Signal, SIGHUP};
 
+mod ringbuffer;
 mod pacparser;
 mod proxy;
 mod wpad;
