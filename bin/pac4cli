@@ -1,0 +1,2 @@
+#!/bin/sh
+@PYTHON@ -m pac4cli "$@"

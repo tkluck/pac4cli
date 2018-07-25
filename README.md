@@ -51,4 +51,5 @@ Then, use
 
     make install
 
-
+**Just `python setup.py install` is not sufficient.** That will only install
+the pac4cli module, but not the binary or the configuration files.
