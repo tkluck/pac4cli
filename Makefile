@@ -18,7 +18,6 @@ pythonsitedir = "$(shell $(PYTHON) -c "from distutils.sysconfig import get_pytho
 default:
 	@echo Nothing to build\; run make install.
 
-.PHONY: pacparser
 pacparser:
 	curl -L https://github.com/pacparser/pacparser/archive/1.3.7.tar.gz | tar -xz
 	mv pacparser-1.3.7 pacparser
