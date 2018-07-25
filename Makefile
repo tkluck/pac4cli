@@ -50,6 +50,7 @@ run: env
 
 .PHONY: check
 check: env
+	env/bin/pip install -r requirements-check.txt
 	env/bin/python test/runtests.py
 
 .PHONY: check-prev-proxies

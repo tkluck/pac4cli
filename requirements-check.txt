@@ -1,0 +1,3 @@
+pygobject
+python-dbusmock
+plumbum
