@@ -37,11 +37,14 @@ class WPAD:
                                                   path)
                 config_path = yield conn.callRemote('Get',
                             'org.freedesktop.NetworkManager.Connection.Active', 'Ip4Config')
-                config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
-                                                    config_path)
-                domains = yield config.callRemote('Get',
-                        'org.freedesktop.NetworkManager.IP4Config', 'Domains')
-                res.extend(domains)
+                # this is what networkmanager returns in case there is no associated
+                # configuration, e.g. vpns and tunnels
+                if config_path != "/":
+                    config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                                        config_path)
+                    domains = yield config.callRemote('Get',
+                            'org.freedesktop.NetworkManager.IP4Config', 'Domains')
+                    res.extend(domains)
             except Exception as e:
                 logger.warning("Problem getting domain for connection %s", path, exc_info=True)
 
@@ -66,13 +69,16 @@ class WPAD:
                 config_path = yield conn.callRemote('Get',
                             'org.freedesktop.NetworkManager.Connection.Active', 'Dhcp4Config')
 
-                config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
-                                                    config_path)
-                options = yield config.callRemote('Get',
-                        'org.freedesktop.NetworkManager.DHCP4Config', 'Options')
+                # this is what networkmanager returns in case there is no associated
+                # configuration, e.g. vpns and tunnels
+                if config_path != "/":
+                    config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                                        config_path)
+                    options = yield config.callRemote('Get',
+                            'org.freedesktop.NetworkManager.DHCP4Config', 'Options')
 
-                if 'wpad' in options:
-                    return options['wpad']
+                    if 'wpad' in options:
+                        return options['wpad']
             except Exception as e:
                 logger.warning("Problem getting wpad option for connection %s", path, exc_info=True)
 
