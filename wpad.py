@@ -7,7 +7,6 @@ import os
 
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
-from twisted.internet import defer
 
 if 'Linux' == platform.system():
     import txdbus.client
@@ -33,15 +32,18 @@ class WPAD:
                 'org.freedesktop.NetworkManager', 'ActiveConnections')
 
         for path in active_connection_paths:
-            conn = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
-                                              path)
-            config_path = yield conn.callRemote('Get',
-                        'org.freedesktop.NetworkManager.Connection.Active', 'Ip4Config')
-            config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
-                                                config_path)
-            domains = yield config.callRemote('Get',
-                    'org.freedesktop.NetworkManager.IP4Config', 'Domains')
-            res.extend(domains)
+            try:
+                conn = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                                  path)
+                config_path = yield conn.callRemote('Get',
+                            'org.freedesktop.NetworkManager.Connection.Active', 'Ip4Config')
+                config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                                    config_path)
+                domains = yield config.callRemote('Get',
+                        'org.freedesktop.NetworkManager.IP4Config', 'Domains')
+                res.extend(domains)
+            except Exception as e:
+                logger.warning("Problem getting domain for connection %s", path, exc_info=True)
 
         return res
 
@@ -58,51 +60,54 @@ class WPAD:
                 'org.freedesktop.NetworkManager', 'ActiveConnections')
 
         for path in active_connection_paths:
-            conn = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
-                                              path)
-            config_path = yield conn.callRemote('Get',
-                        'org.freedesktop.NetworkManager.Connection.Active', 'Dhcp4Config')
+            try:
+                conn = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                                  path)
+                config_path = yield conn.callRemote('Get',
+                            'org.freedesktop.NetworkManager.Connection.Active', 'Dhcp4Config')
 
-            config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
-                                                config_path)
-            options = yield config.callRemote('Get',
-                    'org.freedesktop.NetworkManager.DHCP4Config', 'Options')
+                config = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                                    config_path)
+                options = yield config.callRemote('Get',
+                        'org.freedesktop.NetworkManager.DHCP4Config', 'Options')
 
-            if 'wpad' in options:
-                return options['wpad']
+                if 'wpad' in options:
+                    return options['wpad']
+            except Exception as e:
+                logger.warning("Problem getting wpad option for connection %s", path, exc_info=True)
 
         return None
 
-    @inlineCallbacks
     def get_config_wpad_url(self, config_file):
-        if config_file and os.path.isfile(config_file):
-            logger.info("Found config file '%s'", config_file)
-            config = configparser.SafeConfigParser()
-            config.read(config_file)
-            try:
-                url = yield config.get('wpad', 'url')
-                logger.info("Read wpad url: %s", url)
-                return url
-            except configparser.NoOptionError:
-                logger.info("No wpad url specified")
-                yield defer.succeed(None)
-        else:
-            yield defer.succeed(None)
+        logger.info("Trying to read config file '%s'", config_file)
+        config = configparser.SafeConfigParser()
+        config.read(config_file)
+        try:
+            url = config.get('wpad', 'url')
+            logger.info("Read wpad url: %s", url)
+            return url
+        except configparser.NoOptionError:
+            logger.info("No wpad url specified")
+            return None
 
     @inlineCallbacks
     def getUrls(self):
-        wpad_url = yield self.get_config_wpad_url(self.config_file)
+        if self.config_file:
+            try:
+                wpad_url = self.get_config_wpad_url(self.config_file)
+                if wpad_url is not None:
+                    return [ wpad_url ]
+            except Exception as e:
+                logger.warning("Problem reading configuration file %s", self.config_file, exc_info=True)
+
+        logger.info("Trying to get wpad url from NetworkManager DHCP...")
+        wpad_url = yield self.get_wpad_url()
         if wpad_url is not None:
             return [ wpad_url ]
         else:
-            logger.info("Trying to get wpad url from NetworkManager DHCP...")
-            wpad_url = yield self.get_wpad_url()
-            if wpad_url is not None:
-                return [ wpad_url ]
-            else:
-                logger.info("Trying to get wpad url from NetworkManager domains...")
-                domains = yield self.get_dhcp_domains()
-                return [
-                    "http://wpad.{}/wpad.dat".format(domain)
-                    for domain in domains
-                ]
+            logger.info("Trying to get wpad url from NetworkManager domains...")
+            domains = yield self.get_dhcp_domains()
+            return [
+                "http://wpad.{}/wpad.dat".format(domain)
+                for domain in domains
+            ]

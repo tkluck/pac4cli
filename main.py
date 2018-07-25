@@ -49,9 +49,13 @@ def start_server(port, reactor):
 
 @inlineCallbacks
 def get_possible_configuration_locations():
-    wpad = WPAD( reactor, args.config )
-    urls = yield wpad.getUrls()
-    return urls
+    try:
+        wpad = WPAD( reactor, args.config )
+        urls = yield wpad.getUrls()
+        return urls
+    except Exception as e:
+        logger.warning("Issue getting wpad configuration", exc_info=True)
+        return []
 
 @inlineCallbacks
 def updateWPAD(signum=None, stackframe=None):
