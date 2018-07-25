@@ -50,7 +50,6 @@ def start_server(port, reactor):
 @inlineCallbacks
 def get_possible_configuration_locations():
     wpad = WPAD( reactor, args.config )
-    wpad.set_logger( logger )
     urls = yield wpad.getUrls()
     return urls
 

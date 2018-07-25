@@ -2,6 +2,7 @@ import platform
 import configparser
 
 import logging
+logger = logging.getLogger('pac4cli')
 import os
 
 from twisted.internet import reactor
@@ -17,17 +18,12 @@ class WPAD:
     def __init__(self, reactor, config_file):
         self.reactor = reactor
         self.config_file = config_file
-    
-    def set_logger( self, logger ):
-        self.logger = logger
-
 
     @inlineCallbacks
     def get_dhcp_domains(self):
         res = []
         if 'Linux' != platform.system():
-            if self.logger:
-                self.logger.info("No NetworkManager available.") 
+            logger.info("No NetworkManager available.")
             return res
 
         dbus = yield txdbus.client.connect(self.reactor, 'system')
@@ -52,8 +48,7 @@ class WPAD:
     @inlineCallbacks
     def get_wpad_url(self):
         if 'Linux' != platform.system():
-            if self.logger:
-                self.logger.info("No NetworkManager available.") 
+            logger.info("No NetworkManager available.")
             return None
 
         dbus = yield txdbus.client.connect(self.reactor, 'system')
@@ -81,18 +76,15 @@ class WPAD:
     @inlineCallbacks
     def get_config_wpad_url(self, config_file):
         if config_file and os.path.isfile(config_file):
-            if self.logger:
-                self.logger.info("Found config file '%s'", config_file)
+            logger.info("Found config file '%s'", config_file)
             config = configparser.SafeConfigParser()
             config.read(config_file)
             try:
                 url = yield config.get('wpad', 'url')
-                if self.logger:
-                    self.logger.info("Read wpad url: %s", url)
+                logger.info("Read wpad url: %s", url)
                 return url
             except configparser.NoOptionError:
-                if self.logger:
-                    self.logger.info("No wpad url specified")
+                logger.info("No wpad url specified")
                 yield defer.succeed(None)
         else:
             yield defer.succeed(None)
@@ -103,14 +95,12 @@ class WPAD:
         if wpad_url is not None:
             return [ wpad_url ]
         else:
-            if self.logger:
-                self.logger.info("Trying to get wpad url from NetworkManager DHCP...")
+            logger.info("Trying to get wpad url from NetworkManager DHCP...")
             wpad_url = yield self.get_wpad_url()
             if wpad_url is not None:
                 return [ wpad_url ]
             else:
-                if self.logger:
-                    self.logger.info("Trying to get wpad url from NetworkManager domains...")
+                logger.info("Trying to get wpad url from NetworkManager domains...")
                 domains = yield self.get_dhcp_domains()
                 return [
                     "http://wpad.{}/wpad.dat".format(domain)
