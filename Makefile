@@ -4,6 +4,7 @@ OS = $(shell uname)
 PYTHON ?= "$(shell which python3 )"
 TESTPORT ?= 23128
 
+DESTDIR ?= /
 prefix = /usr/local
 ifeq ($(OS), Linux)
 	bindir := $(prefix)/bin
@@ -12,7 +13,6 @@ else
 endif
 
 libdir := $(prefix)/lib
-pythonsitedir = "$(shell $(PYTHON) -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" )"
 
 .PHONY: default
 default:
@@ -51,6 +51,7 @@ run: env
 .PHONY: check
 check: env
 	env/bin/pip install -r requirements-check.txt
+	env/bin/python setup.py install
 	env/bin/python test/runtests.py
 
 .PHONY: check-prev-proxies
@@ -92,23 +93,21 @@ else
 	install -m 644 pac4cli.config $(DESTDIR)/Library/Preferences/.pac4cli/pac4cli.config
 endif
 
+.PHONY: install-python-lib
+install-python-lib:
+	$(PYTHON) setup.py install --root "$(DESTDIR)" --prefix "$(prefix)"
+
 .PHONY: install-bin
 install-bin:
 	install -d $(DESTDIR)$(bindir)
-	install -m 755 main.py $(DESTDIR)$(bindir)/pac4cli
-	@sed -i -e '1s+@PYTHON@+'$(PYTHON)'+' $(DESTDIR)$(bindir)/pac4cli
-
-	install -d $(DESTDIR)$(pythonsitedir)
-	install -m 644 pac4cli.py $(DESTDIR)$(pythonsitedir)/pac4cli.py
-	install -m 644 wpad.py $(DESTDIR)$(pythonsitedir)/wpad.py
-	install -m 644 servicemanager.py $(DESTDIR)$(pythonsitedir)/servicemanager.py
-	install -m 644 portforward.py $(DESTDIR)$(pythonsitedir)/portforward.py
+	install -m 755 bin/pac4cli $(DESTDIR)$(bindir)/pac4cli
+	@sed -i -e 's+@PYTHON@+'$(PYTHON)'+' $(DESTDIR)$(bindir)/pac4cli
 
 .PHONY: install
 ifeq ($(OS),Linux)
-install: install-bin install-service
+install: install-python-lib install-bin install-service
 else
-install: install-python-deps install-bin install-service
+install: install-python-deps install-python-lib install-bin install-service
 endif
 
 .PHONY: uninstall

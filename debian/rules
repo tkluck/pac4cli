@@ -18,7 +18,8 @@
 	dh $@
 
 override_dh_auto_install:
-	$(MAKE) prefix=/usr DESTDIR=debian/pac4cli install
+	python3 setup.py install --install-layout=deb --prefix=/usr --root debian/pac4cli
+	$(MAKE) prefix=/usr DESTDIR=debian/pac4cli install-bin install-service
 
 override_dh_auto_test: # don't run the tests
 

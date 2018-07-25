@@ -7,8 +7,8 @@ from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
 from twisted.web.client import Agent
 
-from wpad import WPAD
-import servicemanager
+from .wpad import WPAD
+from . import servicemanager
 
 from argparse import ArgumentParser
 
@@ -32,7 +32,7 @@ parser.add_argument("--systemd", action='store_true')
 args= parser.parse_args()
 
 
-from pac4cli import WPADProxyRequest
+from .pac4cli import WPADProxyRequest
 
 import logging
 logger = logging.getLogger('pac4cli')

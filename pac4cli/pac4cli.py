@@ -12,7 +12,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue, Deferred
 
 from twisted.python.compat import urllib_parse
 
-import portforward
+from . import portforward
 
 logger = logging.getLogger('pac4cli')
 
