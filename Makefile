@@ -2,6 +2,7 @@ SHELL = /bin/bash
 OS = $(shell uname)
 
 PYTHON ?= "$(shell which python3 )"
+PYTHON_FULL = "$(shell realpath -s "$(PYTHON)")"
 TESTPORT ?= 23128
 
 DESTDIR ?= /
@@ -24,25 +25,20 @@ pacparser:
 
 .PHONY: install-python-deps
 install-python-deps: requirements.txt pacparser
-	@if [[ "$(PYTHON)x" == "x" ]]; then \
+	@if [[ "$(PYTHON_FULL)x" == "x" ]]; then \
 		echo "Couldnot find 'python3'" && \
 		echo "Please install:" && \
 		echo "- python3" && \
 		echo "- pip3" && \
 		exit 1; \
 	fi
-	pip3 install -r requirements.txt
-	PYTHON=$(PYTHON) make -C pacparser/src install-pymod
+	$(PYTHON_FULL) -m pip install -r requirements.txt
+	PYTHON=$(PYTHON_FULL) make -C pacparser/src install-pymod
 
 .PHONY: env
 env: requirements.txt pacparser
-	virtualenv -p $(PYTHON) env
-	env/bin/pip install -r requirements.txt
-	if [[ "$(OS)x" == "Linuxx" ]]; then 	\
-		env/bin/pip install systemd &&		\
-		env/bin/pip install txdbus;			\
-	fi
-	PYTHON=`pwd`/env/bin/python make -C pacparser/src install-pymod
+	virtualenv -p $(PYTHON_FULL) env
+	PYTHON=`pwd`/env/bin/python make install-python-deps
 
 .PHONY: run
 run: env
@@ -84,7 +80,7 @@ else
 	install -d $(DESTDIR)/Library/LaunchDaemons
 	install -m 644 launchd/daemon.pac4cli.plist $(DESTDIR)/Library/LaunchDaemons/pac4cli.plist
 
-	@sed -i -e 's@/usr/local/bin/python3@'"$(PYTHON)"'@g' $(DESTDIR)/Library/LaunchDaemons/pac4cli.plist
+	@sed -i -e 's@/usr/local/bin/python3@'"$(PYTHON_FULL)"'@g' $(DESTDIR)/Library/LaunchDaemons/pac4cli.plist
 
 	install -d $(DESTDIR)/Library/LaunchAgents
 	install -m 644 launchd/agent.pac4cli.plist $(DESTDIR)/Library/LaunchAgents/pac4cli.plist
@@ -101,7 +97,7 @@ install-python-lib:
 install-bin:
 	install -d $(DESTDIR)$(bindir)
 	install -m 755 bin/pac4cli $(DESTDIR)$(bindir)/pac4cli
-	@sed -i -e 's+@PYTHON@+'$(PYTHON)'+' $(DESTDIR)$(bindir)/pac4cli
+	@sed -i -e 's+@PYTHON@+'$(PYTHON_FULL)'+' $(DESTDIR)$(bindir)/pac4cli
 
 .PHONY: install
 ifeq ($(OS),Linux)
