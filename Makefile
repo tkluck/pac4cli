@@ -46,7 +46,7 @@ env: requirements.txt pacparser
 
 .PHONY: run
 run: env
-	env/bin/python main.py -F DIRECT -p $(TESTPORT)
+	env/bin/python -m pac4cli -F DIRECT -p $(TESTPORT)
 
 .PHONY: check
 check: env
