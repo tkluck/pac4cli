@@ -3,3 +3,5 @@ twisted
 pyOpenSSL
 service_identity
 dbus-python
+txdbus; sys_platform == "linux"
+systemd; sys_platform == "linux"
