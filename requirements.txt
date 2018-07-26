@@ -3,3 +3,6 @@ twisted
 pyOpenSSL
 service_identity
 dbus-python
+txdbus
+systemd
+pacparser
