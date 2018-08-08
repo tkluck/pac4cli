@@ -24,7 +24,7 @@ from plumbum import FG, BG
 from plumbum.cmd import curl
 
 python     = plumbum.local["env/bin/python"]
-serve_once = plumbum.local["nc.openbsd"]["-C", "-l", "-p"]
+serve_once = python["test/serve_once.py"]
 pac4cli    = python["-m", "pac4cli"]
 
 testdir = plumbum.local.path(os.path.dirname(os.path.abspath(__file__)))
