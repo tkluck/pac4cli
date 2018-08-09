@@ -13,6 +13,15 @@ if 'Linux' == platform.system():
     # work around txdbus assuming python 2
     txdbus.client.basestring = str
 
+
+# TODO: move this to a more appropriate module
+@inlineCallbacks
+def install_network_state_changed_callback(reactor, callback):
+    dbus = yield txdbus.client.connect(reactor, 'system')
+    nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
+                                   '/org/freedesktop/NetworkManager')
+    nm.notifyOnSignal('StateChanged', callback)
+
 class WPAD:
     def __init__(self, reactor, config_file):
         self.reactor = reactor
