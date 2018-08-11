@@ -7,8 +7,8 @@ from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
 from twisted.web.client import Agent
 
-from wpad import WPAD, install_network_state_changed_callback
-import servicemanager
+from .wpad import WPAD, install_network_state_changed_callback
+from . import servicemanager
 
 from argparse import ArgumentParser
 
@@ -24,6 +24,7 @@ Run a simple HTTP proxy on localhost that uses a wpad.dat to decide
 how to connect to the actual server.
 """)
 parser.add_argument("-c", "--config", type=str)
+parser.add_argument("-b", "--bind", type=str, metavar="ADDRESS", default="127.0.0.1")
 parser.add_argument("-p", "--port", type=int, metavar="PORT")
 parser.add_argument("-F", "--force-proxy", type=str, metavar="PROXY STRING")
 parser.add_argument("--loglevel", type=str, default="info", metavar="LEVEL")
@@ -32,18 +33,18 @@ parser.add_argument("--systemd", action='store_true')
 args= parser.parse_args()
 
 
-from pac4cli import WPADProxyRequest
+from .pac4cli import WPADProxyRequest
 
 import logging
 logger = logging.getLogger('pac4cli')
 
 @inlineCallbacks
-def start_server(port, reactor):
+def start_server(interface, port, reactor):
     factory = HTTPFactory()
     factory.protocol = proxy.Proxy
     factory.protocol.requestFactory = WPADProxyRequest
 
-    yield reactor.listenTCP(port, factory, interface="127.0.0.1")
+    yield reactor.listenTCP(port, factory, interface=interface)
     
     servicemanager.notify_ready();
 
@@ -109,8 +110,8 @@ def main(args):
             logger.warning("Issue registering for network state change notifications", exc_info=True)
 
         force_proxy_message = ", sending all traffic through %s"%args.force_proxy if args.force_proxy else ""
-        logger.info("Starting proxy server on port %s%s", args.port, force_proxy_message)
-        yield start_server(args.port, reactor)
+        logger.info("Starting proxy server on %s:%s%s", args.bind, args.port, force_proxy_message)
+        yield start_server(args.bind, args.port, reactor)
         logger.info("Successfully started.")
     except Exception as e:
         logger.error("Problem starting the server", exc_info=True)

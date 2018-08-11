@@ -64,5 +64,5 @@ package() {
 		exit 1;
 	fi
 	git checkout ${LATEST_TAG}										# checkout latest release tag
-	PYTHON=python3 make pythonsitedir=/usr/lib/python3.6/site-packages DESTDIR="${pkgdir}" prefix=/usr install
+	PYTHON=python3 make DESTDIR="${pkgdir}" prefix=/usr install
 }

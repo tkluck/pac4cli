@@ -37,6 +37,22 @@ The latest builds are available through a PPA:
 
 You'll need to restart your shell for the new environment variables to take effect.
 
+This will install `pac4cli` for most of your command line tools. However, we
+don't ship configuration for Apt. If you want to use `pac4cli` for software
+updates, you'll need to run the following:
+
+    sudo tee /etc/apt/apt.conf.d/99pac4cli <<CONFIG
+    Acquire::http::proxy "http://localhost:3128/";
+    Acquire::https::proxy "http://localhost:3128/";
+    # The following are needed to work around limitations
+    # in pac4cli's support of http features:
+    Acquire::http::No-Cache true;
+    Acquire::http::Pipeline-Depth 0;
+    CONFIG
+
+The reason why this is not included in the Ubuntu package is that if pac4cli ever
+breaks, we could not ship an update to unbreak it.
+
 #### Archlinux
 
 This package is available in AUR.
@@ -51,4 +67,5 @@ Then, use
 
     make install
 
-
+**Just `python setup.py install` is not sufficient.** That will only install
+the pac4cli module, but not the binary or the configuration files.

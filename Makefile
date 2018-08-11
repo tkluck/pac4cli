@@ -2,8 +2,10 @@ SHELL = /bin/bash
 OS = $(shell uname)
 
 PYTHON ?= "$(shell which python3 )"
+PYTHON_FULL = "$(shell realpath -s "$(PYTHON)")"
 TESTPORT ?= 23128
 
+DESTDIR ?= /
 prefix = /usr/local
 ifeq ($(OS), Linux)
 	bindir := $(prefix)/bin
@@ -12,7 +14,6 @@ else
 endif
 
 libdir := $(prefix)/lib
-pythonsitedir = "$(shell $(PYTHON) -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" )"
 
 .PHONY: default
 default:
@@ -24,33 +25,29 @@ pacparser:
 
 .PHONY: install-python-deps
 install-python-deps: requirements.txt pacparser
-	@if [[ "$(PYTHON)x" == "x" ]]; then \
+	@if [[ "$(PYTHON_FULL)x" == "x" ]]; then \
 		echo "Couldnot find 'python3'" && \
 		echo "Please install:" && \
 		echo "- python3" && \
 		echo "- pip3" && \
 		exit 1; \
 	fi
-	pip3 install -r requirements.txt
-	PYTHON=$(PYTHON) make -C pacparser/src install-pymod
+	$(PYTHON_FULL) -m pip install -r requirements.txt
+	PYTHON=$(PYTHON_FULL) make -C pacparser/src install-pymod
 
 .PHONY: env
 env: requirements.txt pacparser
-	virtualenv -p $(PYTHON) env
-	env/bin/pip install -r requirements.txt
-	if [[ "$(OS)x" == "Linuxx" ]]; then 	\
-		env/bin/pip install systemd &&		\
-		env/bin/pip install txdbus;			\
-	fi
-	PYTHON=`pwd`/env/bin/python make -C pacparser/src install-pymod
+	virtualenv -p $(PYTHON_FULL) env
+	PYTHON=`pwd`/env/bin/python make install-python-deps
 
 .PHONY: run
 run: env
-	env/bin/python main.py -F DIRECT -p $(TESTPORT)
+	env/bin/python -m pac4cli -F DIRECT -p $(TESTPORT)
 
 .PHONY: check
 check: env
 	env/bin/pip install -r requirements-check.txt
+	env/bin/python setup.py install
 	env/bin/python test/runtests.py
 
 .PHONY: check-prev-proxies
@@ -82,7 +79,7 @@ else
 	install -d $(DESTDIR)/Library/LaunchDaemons
 	install -m 644 launchd/daemon.pac4cli.plist $(DESTDIR)/Library/LaunchDaemons/pac4cli.plist
 
-	@sed -i -e 's@/usr/local/bin/python3@'"$(PYTHON)"'@g' $(DESTDIR)/Library/LaunchDaemons/pac4cli.plist
+	@sed -i -e 's@/usr/local/bin/python3@'"$(PYTHON_FULL)"'@g' $(DESTDIR)/Library/LaunchDaemons/pac4cli.plist
 
 	install -d $(DESTDIR)/Library/LaunchAgents
 	install -m 644 launchd/agent.pac4cli.plist $(DESTDIR)/Library/LaunchAgents/pac4cli.plist
@@ -91,23 +88,21 @@ else
 	install -m 644 pac4cli.config $(DESTDIR)/Library/Preferences/.pac4cli/pac4cli.config
 endif
 
+.PHONY: install-python-lib
+install-python-lib:
+	$(PYTHON) setup.py install --root "$(DESTDIR)" --prefix "$(prefix)"
+
 .PHONY: install-bin
 install-bin:
 	install -d $(DESTDIR)$(bindir)
-	install -m 755 main.py $(DESTDIR)$(bindir)/pac4cli
-	@sed -i -e '1s+@PYTHON@+'$(PYTHON)'+' $(DESTDIR)$(bindir)/pac4cli
-
-	install -d $(DESTDIR)$(pythonsitedir)
-	install -m 644 pac4cli.py $(DESTDIR)$(pythonsitedir)/pac4cli.py
-	install -m 644 wpad.py $(DESTDIR)$(pythonsitedir)/wpad.py
-	install -m 644 servicemanager.py $(DESTDIR)$(pythonsitedir)/servicemanager.py
-	install -m 644 portforward.py $(DESTDIR)$(pythonsitedir)/portforward.py
+	install -m 755 bin/pac4cli $(DESTDIR)$(bindir)/pac4cli
+	@sed -i -e 's+@PYTHON@+'$(PYTHON_FULL)'+' $(DESTDIR)$(bindir)/pac4cli
 
 .PHONY: install
 ifeq ($(OS),Linux)
-install: install-bin install-service
+install: install-python-lib install-bin install-service
 else
-install: install-python-deps install-bin install-service
+install: install-python-deps install-python-lib install-bin install-service
 endif
 
 .PHONY: uninstall
