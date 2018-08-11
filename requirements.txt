@@ -2,6 +2,6 @@ incremental
 twisted
 pyOpenSSL
 service_identity
-dbus-python
+dbus-python; sys_platform == "linux"
 txdbus; sys_platform == "linux"
 systemd; sys_platform == "linux"
