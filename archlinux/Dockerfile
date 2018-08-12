@@ -10,4 +10,4 @@ RUN makepkg
 USER root
 RUN pacman --noconfirm -U pac4cli*pkg.tar.xz
 EXPOSE 3128
-CMD pac4cli -p 3128
+CMD pac4cli --bind 0.0.0.0 -p 3128
