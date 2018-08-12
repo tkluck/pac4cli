@@ -1,4 +1,7 @@
+source "/usr/share/makepkg/util/message.sh"
+
 pre_install() {
+	colorize
 	# check for already defined http(s)_proxy
 	RESULT=$(grep -r -E '(http_proxy=)|(HTTP_PROXY=)|(https_proxy=)|(HTTPS_PROXY=)' \
 			${DESTDIR}/${PREFIX}/etc/profile.d | cut -d':' -f1 | sort | uniq)
@@ -15,6 +18,7 @@ pre_install() {
 }
 
 pre_upgrade() {
+	colorize
 	IS_ACTIVE=$(systemctl is-active pac4cli 2>/dev/null)
 	if [[ "xIS_ACTIVE" == "xactive" ]]; then
 		msg2 "Stopping pac4cli service..."
@@ -23,6 +27,7 @@ pre_upgrade() {
 }
 
 post_upgrade() {
+	colorize
 	if [[ "x$IS_ACTIVE" == "xactive" ]]; then
 		warning "You need to reload systemd daemons and start pac4cli service."
 		warning "# systemd daemon-reload"
@@ -31,7 +36,8 @@ post_upgrade() {
 }
 
 post_install() {
-	warning "You need to restart your machine and then start pac4cli service."
+	colorize
+	msg "You need to restart your machine and then start pac4cli service."
 }
 
 pre_remove() {
