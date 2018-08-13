@@ -73,7 +73,6 @@ ifeq ($(OS),Linux)
 	
 	@sed -i -e 's@/usr/local/bin@'"$(bindir)"'@g' $(DESTDIR)$(libdir)/systemd/system/pac4cli.service
 
-	install -D -m 755 trigger-pac4cli $(DESTDIR)/etc/NetworkManager/dispatcher.d/trigger-pac4cli
 	install -D -m 755 pac4cli.sh $(DESTDIR)/etc/profile.d/pac4cli-proxy.sh
 	install -D -m 644 pac4cli.config $(DESTDIR)/etc/pac4cli/pac4cli.config
 else

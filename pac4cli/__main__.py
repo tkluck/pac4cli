@@ -7,7 +7,7 @@ from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
 from twisted.web.client import Agent
 
-from .wpad import WPAD
+from .wpad import WPAD, install_network_state_changed_callback
 from . import servicemanager
 
 from argparse import ArgumentParser
@@ -15,7 +15,6 @@ from argparse import ArgumentParser
 import platform
 
 import pacparser
-import signal
 
 import configparser
 
@@ -98,7 +97,16 @@ def main(args):
             WPADProxyRequest.force_proxy = args.force_proxy
         else:
             yield updateWPAD()
-        signal.signal(signal.SIGHUP, updateWPAD)
+
+        try:
+            yield install_network_state_changed_callback(reactor, updateWPAD)
+        except Exception as e:
+            # It _may_ actually be preferable to just die if we can't register
+            # this handler. However, the test scripts use a mocked version of
+            # dbus (python-dbusmock) which doesn't support mocking signals. So
+            # I'll just let this pass as a warning for that case.
+            logger.warning("Issue registering for network state change notifications", exc_info=True)
+
         force_proxy_message = ", sending all traffic through %s"%args.force_proxy if args.force_proxy else ""
         logger.info("Starting proxy server on %s:%s%s", args.bind, args.port, force_proxy_message)
         yield start_server(args.bind, args.port, reactor)
