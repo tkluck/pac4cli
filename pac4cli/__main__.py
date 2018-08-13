@@ -15,7 +15,6 @@ from argparse import ArgumentParser
 import platform
 
 import pacparser
-import signal
 
 import configparser
 
@@ -99,7 +98,6 @@ def main(args):
         else:
             yield updateWPAD()
 
-        signal.signal(signal.SIGHUP, updateWPAD)
         try:
             yield install_network_state_changed_callback(reactor, updateWPAD)
         except Exception as e:
