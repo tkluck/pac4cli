@@ -10,7 +10,7 @@ fi
 
 cd $SRC_DIR
 
-docker build -t pac4cli -f archlinux/Dockerfile .
+docker build -t archlinux-pac4cli -f archlinux/Dockerfile .
 
 #systemd expects:
 # - /run to be a tmpfs
