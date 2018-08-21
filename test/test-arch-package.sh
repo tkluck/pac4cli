@@ -10,7 +10,7 @@ fi
 
 cd $SRC_DIR
 
-sudo docker build -t pac4cli -f archlinux/Dockerfile .
+docker build -t archlinux-pac4cli -f archlinux/Dockerfile .
 
 #systemd expects:
 # - /run to be a tmpfs
@@ -20,4 +20,4 @@ sudo docker build -t pac4cli -f archlinux/Dockerfile .
 #
 # TODO: Currently this is a kind of noop container. I need to figure out how to
 # start it with a command (test script).
-sudo docker run -d --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro pac4cli
+docker run -d --tmpfs /tmp --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:ro pac4cli
