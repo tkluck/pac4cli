@@ -1,9 +1,8 @@
-import platform
-import configparser
-
 import logging
 logger = logging.getLogger('pac4cli')
-import os
+
+import platform
+import configparser
 
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
