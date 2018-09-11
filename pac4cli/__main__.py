@@ -1,22 +1,20 @@
-#!@PYTHON@
+import logging
+logger = logging.getLogger('pac4cli')
+
+from argparse import ArgumentParser
+
 from twisted.internet import reactor
 from twisted.web import proxy
 from twisted.web.http import HTTPFactory
 from twisted.web.client import Agent, readBody
-from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
-from twisted.web.client import Agent
-
-from .wpad import WPAD, install_network_state_changed_callback
-from . import servicemanager
-
-from argparse import ArgumentParser
-
-import platform
 
 import pacparser
 
-import configparser
+from .wpad import WPAD, install_network_state_changed_callback
+from .pac4cli import WPADProxyRequest
+from . import servicemanager
+
 
 parser= ArgumentParser(description="""
 Run a simple HTTP proxy on localhost that uses a wpad.dat to decide
@@ -30,12 +28,6 @@ parser.add_argument("--loglevel", type=str, default="info", metavar="LEVEL")
 parser.add_argument("--systemd", action='store_true')
 
 args= parser.parse_args()
-
-
-from .pac4cli import WPADProxyRequest
-
-import logging
-logger = logging.getLogger('pac4cli')
 
 @inlineCallbacks
 def start_server(interface, port, reactor):
