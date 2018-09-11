@@ -41,11 +41,13 @@ class WPAD:
                 'org.freedesktop.NetworkManager', 'ActiveConnections')
 
         for path in active_connection_paths:
+            logger.debug("Inspecting connection %s", path)
             try:
                 conn = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
                                                   path)
                 config_path = yield conn.callRemote('Get',
                             'org.freedesktop.NetworkManager.Connection.Active', 'Ip4Config')
+                logger.debug("Its IP4 configuration is %s", config_path)
                 # this is what networkmanager returns in case there is no associated
                 # configuration, e.g. vpns and tunnels
                 if config_path != "/":
@@ -53,7 +55,10 @@ class WPAD:
                                                         config_path)
                     domains = yield config.callRemote('Get',
                             'org.freedesktop.NetworkManager.IP4Config', 'Domains')
+                    logger.debug("Its domains are %s", domains)
                     res.extend(domains)
+                else:
+                    logger.debug("Skipping /")
             except Exception as e:
                 logger.warning("Problem getting domain for connection %s", path, exc_info=True)
 
@@ -72,11 +77,13 @@ class WPAD:
                 'org.freedesktop.NetworkManager', 'ActiveConnections')
 
         for path in active_connection_paths:
+            logger.debug("Inspecting connection %s", path)
             try:
                 conn = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
                                                   path)
                 config_path = yield conn.callRemote('Get',
                             'org.freedesktop.NetworkManager.Connection.Active', 'Dhcp4Config')
+                logger.debug("Its Dhcp4 configuration is %s", config_path)
 
                 # this is what networkmanager returns in case there is no associated
                 # configuration, e.g. vpns and tunnels
@@ -85,9 +92,12 @@ class WPAD:
                                                         config_path)
                     options = yield config.callRemote('Get',
                             'org.freedesktop.NetworkManager.DHCP4Config', 'Options')
+                    logger.debug("Its options are %s", options)
 
                     if 'wpad' in options:
                         return options['wpad']
+                else:
+                    logger.debug("Skipping /")
             except Exception as e:
                 logger.warning("Problem getting wpad option for connection %s", path, exc_info=True)
 
@@ -114,6 +124,8 @@ class WPAD:
                     return [ wpad_url ]
             except Exception as e:
                 logger.warning("Problem reading configuration file %s", self.config_file, exc_info=True)
+        else:
+            logger.debug("No configuration file specified")
 
         logger.info("Trying to get wpad url from NetworkManager DHCP...")
         wpad_url = yield self.get_wpad_url()
