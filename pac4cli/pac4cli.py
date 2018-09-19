@@ -18,6 +18,27 @@ logger = logging.getLogger('pac4cli')
 
 import pacparser
 
+"""
+Cases to keep in mind:
+
+    host
+    host.com
+    host0
+    host0:80
+    127.0.0.1
+    127.0.0.1:80
+    [0abc:1def::1234]
+    [0abc:1def::1234]:443
+"""
+def split_host_port(destination):
+    components = destination.rsplit(":", maxsplit=1)
+    if len(components) == 1:
+        return (destination, None)
+    elif all(c.isdigit() for c in components[1]):
+        return components[0], int(components[1])
+    else:
+        return destination
+
 class WPADProxyRequest(proxy.ProxyRequest):
 
     force_proxy = None
@@ -29,15 +50,13 @@ class WPADProxyRequest(proxy.ProxyRequest):
         method = self.method.decode('ascii')
         uri = self.uri.decode('ascii')
         if method == 'CONNECT':
-            host, port = uri.split(":")
+            host, port = split_host_port(uri)
             port = int(port)
         else:
             parsed = urllib_parse.urlparse(self.uri)
-            host = parsed[1].decode('ascii')
-            if ':' in host:
-                host, port = host.split(':')
-                port = int(port)
-            else:
+            decoded = parsed[1].decode('ascii')
+            host, port = split_host_port(decoded)
+            if port is None:
                 port = 80
             rest = urllib_parse.urlunparse((b'', b'') + parsed[2:])
             if not rest:
