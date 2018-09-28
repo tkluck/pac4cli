@@ -1,16 +1,11 @@
+import logging
+logger = logging.getLogger('pac4cli')
+
 import re
 
-import logging
-from contextlib import contextmanager
-
-from twisted.internet import ssl
 from twisted.web import proxy
-
-from twisted.web.http import HTTPFactory
-from twisted.web.client import Agent, FileBodyProducer, Headers, readBody
-from twisted.internet.defer import inlineCallbacks, returnValue, Deferred
-
 from twisted.python.compat import urllib_parse
+import pacparser
 
 from . import portforward
 
