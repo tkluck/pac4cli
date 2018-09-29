@@ -11,3 +11,5 @@ github_username:  tkluck
 
 # Build settings
 markdown: kramdown
+
+theme: jekyll-theme-slate
