@@ -2,3 +2,6 @@
 __pycache__
 env/
 pacparser/
+build/
+dist/
+pac4cli.egg-info/
