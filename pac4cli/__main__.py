@@ -111,8 +111,6 @@ def main(args):
         WPADProxyRequest.force_direct = 'DIRECT' # direct, until we have a configuration
         if args.force_proxy:
             WPADProxyRequest.force_proxy = args.force_proxy
-        else:
-            yield updateWPAD()
 
         try:
             yield install_network_state_changed_callback(reactor, updateWPAD)
@@ -126,7 +124,9 @@ def main(args):
         force_proxy_message = ", sending all traffic through %s"%args.force_proxy if args.force_proxy else ""
         logger.info("Starting proxy server on %s:%s%s", args.bind, args.port, force_proxy_message)
         yield start_server(args.bind, args.port, reactor)
-        logger.info("Successfully started.")
+        logger.info("Successfully started; getting first configuration.")
+        yield updateWPAD()
+        logger.info("Have first configuration.")
     except Exception as e:
         logger.error("Problem starting the server", exc_info=True)
 
