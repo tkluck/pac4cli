@@ -26,6 +26,12 @@ start_service() {
 
 case "$1" in
     configure)
+        # this old configuration file breaks pac4cli startup
+        # because it sends SIGHUPs that we don't handle anymore
+        # since e2f264aa5adf7f4a3c2d3ed2. Technically, we shouldn't
+        # just remove this but check for local modifications, but
+        # that's sufficiently unlikelye that I'll just go with this.
+        rm -f /etc/NetworkManager/dispatcher.d/trigger-pac4cli
         start_service
     ;;
 
