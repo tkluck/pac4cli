@@ -4,8 +4,10 @@ Requires=NetworkManager.service
 After=NetworkManager.service
 
 [Service]
+Type=notify
 ExecStart=/usr/local/bin/pac4cli -p 3128 --systemd --config /etc/pac4cli/pac4cli.config --loglevel warn
 Restart=always
+NotifyAccess=all
 
 [Install]
 WantedBy=network.target
