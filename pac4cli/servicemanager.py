@@ -16,3 +16,5 @@ if 'Linux' == platform.system():
         LogHandler = systemd.journal.JournaldLogHandler
         def notify_ready():
             systemd.daemon.notify(systemd.daemon.Notification.READY)
+    else:
+        raise AssertionError("Something is wrong with the systemd module we imported")
