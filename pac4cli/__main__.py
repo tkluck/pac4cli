@@ -55,7 +55,8 @@ def resolve(interface):
         addr.add(ip.exploded)
     except ValueError as e:
         # It is an invalid ip address, let's see if it is a hostname
-        results = socket.getaddrinfo(interface, None, proto=socket.IPPROTO_TCP)
+        # since IPv6 stack is not enabled on all systems, we are looking for IPv4 family only
+        results = socket.getaddrinfo(interface, None, family=socket.AF_INET, proto=socket.IPPROTO_TCP)
         for entry in results:
             ip = entry[4][0]
             ip = ipaddress.ip_address(ip)
