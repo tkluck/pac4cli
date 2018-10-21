@@ -44,7 +44,7 @@ def start_server(interface, port, reactor):
         logger.info("Binding to interface: '%s'" % interface_ip)
         try:
             yield reactor.listenTCP(port, factory, interface=interface_ip)
-        except OSError e:
+        except OSError as e:
             # Most likely the most famous reason we will see this log for, 
             # is that we are trying to bind to an IPv6 interface on a
             # system that has the IPv6 stack disabled.
