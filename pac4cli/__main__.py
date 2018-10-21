@@ -42,7 +42,14 @@ def start_server(interface, port, reactor):
     print( interface_ips )
     for interface_ip in interface_ips:
         logger.info("Binding to interface: '%s'" % interface_ip)
-        yield reactor.listenTCP(port, factory, interface=interface_ip)
+        try:
+            yield reactor.listenTCP(port, factory, interface=interface_ip)
+        except OSError e:
+            # Most likely the most famous reason we will see this log for, 
+            # is that we are trying to bind to an IPv6 interface on a
+            # system that has the IPv6 stack disabled.
+            logger.error("Failed to bind to interface '%s'" % interface_ip)
+            continue
     
     servicemanager.notify_ready();
 
@@ -55,8 +62,7 @@ def resolve(interface):
         addr.add(ip.exploded)
     except ValueError as e:
         # It is an invalid ip address, let's see if it is a hostname
-        # since IPv6 stack is not enabled on all systems, we are looking for IPv4 family only
-        results = socket.getaddrinfo(interface, None, family=socket.AF_INET, proto=socket.IPPROTO_TCP)
+        results = socket.getaddrinfo(interface, None, proto=socket.IPPROTO_TCP)
         for entry in results:
             ip = entry[4][0]
             ip = ipaddress.ip_address(ip)
