@@ -47,7 +47,6 @@ def start_server(interface, port, reactor):
     servicemanager.notify_ready();
 
 def resolve(interface):
-
     logger.info("resolving interface: %s" % interface)
     addr = set()
     try:
@@ -62,7 +61,6 @@ def resolve(interface):
             ip = ipaddress.ip_address(ip)
             logger.info("%s => %s" % (interface, ip.exploded))
             addr.add(ip.exploded)
-
     return list(addr)
 
 @inlineCallbacks
