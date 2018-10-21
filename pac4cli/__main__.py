@@ -47,12 +47,13 @@ def start_server(interface, port, reactor):
     servicemanager.notify_ready();
 
 def resolve(interface):
+
     logger.info("resolving interface: %s" % interface)
-    addr = []
+    addr = set()
     try:
         ip = ipaddress.ip_address(interface)
         logger.info("%s => %s" % (interface,ip))
-        addr.append(ip.exploded)
+        addr.add(ip.exploded)
     except ValueError as e:
         # It is an invalid ip address, let's see if it is a hostname
         results = socket.getaddrinfo(interface, None, proto=socket.IPPROTO_TCP)
@@ -60,8 +61,9 @@ def resolve(interface):
             ip = entry[4][0]
             ip = ipaddress.ip_address(ip)
             logger.info("%s => %s" % (interface, ip.exploded))
-            addr.append(ip.exploded)
-    return addr
+            addr.add(ip.exploded)
+
+    return list(addr)
 
 @inlineCallbacks
 def get_possible_configuration_locations():
