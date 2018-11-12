@@ -9,10 +9,6 @@ import pacparser
 
 from . import portforward
 
-logger = logging.getLogger('pac4cli')
-
-import pacparser
-
 """
 Cases to keep in mind:
 
