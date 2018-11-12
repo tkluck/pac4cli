@@ -2,6 +2,8 @@ import platform
 import logging
 
 LogHandler = logging.NullHandler
+
+
 def notify_ready():
     pass
 
@@ -12,7 +14,7 @@ if 'Linux' == platform.system():
         LogHandler = systemd.journal.JournalHandler
         def notify_ready():
             systemd.daemon.notify("READY=1")
-    elif hasattr(systemd.journal, 'JournaldLogHandler'): # mosquito bindings
+    elif hasattr(systemd.journal, 'JournaldLogHandler'):  # mosquito bindings
         LogHandler = systemd.journal.JournaldLogHandler
         def notify_ready():
             systemd.daemon.notify(systemd.daemon.Notification.READY)
