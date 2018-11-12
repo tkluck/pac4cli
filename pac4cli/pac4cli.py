@@ -9,26 +9,32 @@ import pacparser
 
 from . import portforward
 
-"""
-Cases to keep in mind:
-
-    host
-    host.com
-    host0
-    host0:80
-    127.0.0.1
-    127.0.0.1:80
-    [0abc:1def::1234]
-    [0abc:1def::1234]:443
-"""
 def split_host_port(destination):
-    components = destination.rsplit(":", maxsplit=1)
+    '''
+    >>> split_host_port('host')
+    ('host', None)
+    >>> split_host_port('host.com')
+    ('host.com', None)
+    >>> split_host_port('host0')
+    ('host0', None)
+    >>> split_host_port('host0:80')
+    ('host0', 80)
+    >>> split_host_port('127.0.0.1')
+    ('127.0.0.1', None)
+    >>> split_host_port('127.0.0.1:80')
+    ('127.0.0.1', 80)
+    >>> split_host_port('[0abc:1def::1234]')
+    ('[0abc:1def::1234]', None)
+    >>> split_host_port('[0abc:1def::1234]:443')
+    ('[0abc:1def::1234]', 443)
+    '''
+    components = destination.rsplit(':', maxsplit=1)
     if len(components) == 1:
         return (destination, None)
     elif all(c.isdigit() for c in components[1]):
         return components[0], int(components[1])
     else:
-        return destination
+        return (destination, None)
 
 class WPADProxyRequest(proxy.ProxyRequest):
 
