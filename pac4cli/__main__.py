@@ -15,16 +15,13 @@ from .wpad import WPAD, install_network_state_changed_callback
 from .pac4cli import WPADProxyRequest
 from . import servicemanager
 
-import socket
-import ipaddress
-
 
 parser= ArgumentParser(description="""
 Run a simple HTTP proxy on localhost that uses a wpad.dat to decide
 how to connect to the actual server.
 """)
 parser.add_argument("-c", "--config", type=str)
-parser.add_argument("-b", "--bind", type=str, metavar="ADDRESS", default="localhost")
+parser.add_argument("-b", "--bind", type=str, metavar="ADDRESS", default="127.0.0.1")
 parser.add_argument("-p", "--port", type=int, metavar="PORT")
 parser.add_argument("-F", "--force-proxy", type=str, metavar="PROXY STRING")
 parser.add_argument("--loglevel", type=str, default="info", metavar="LEVEL")
@@ -38,37 +35,9 @@ def start_server(interface, port, reactor):
     factory.protocol = proxy.Proxy
     factory.protocol.requestFactory = WPADProxyRequest
 
-    interface_ips = resolve(interface)
-    print( interface_ips )
-    for interface_ip in interface_ips:
-        logger.info("Binding to interface: '%s'" % interface_ip)
-        try:
-            yield reactor.listenTCP(port, factory, interface=interface_ip)
-        except OSError as e:
-            # Most likely the most famous reason we will see this log for, 
-            # is that we are trying to bind to an IPv6 interface on a
-            # system that has the IPv6 stack disabled.
-            logger.error("Failed to bind to interface '%s'" % interface_ip)
-            continue
-    
-    servicemanager.notify_ready();
+    yield reactor.listenTCP(port, factory, interface=interface)
 
-def resolve(interface):
-    logger.info("resolving interface: %s" % interface)
-    addr = set()
-    try:
-        ip = ipaddress.ip_address(interface)
-        logger.info("%s => %s" % (interface,ip))
-        addr.add(ip.exploded)
-    except ValueError as e:
-        # It is an invalid ip address, let's see if it is a hostname
-        results = socket.getaddrinfo(interface, None, proto=socket.IPPROTO_TCP)
-        for entry in results:
-            ip = entry[4][0]
-            ip = ipaddress.ip_address(ip)
-            logger.info("%s => %s" % (interface, ip.exploded))
-            addr.add(ip.exploded)
-    return list(addr)
+    servicemanager.notify_ready();
 
 @inlineCallbacks
 def get_possible_configuration_locations():
