@@ -1,10 +1,13 @@
 [Unit]
 Description=PAC autoconfigured proxy for use through http_proxy= environment variables
-After=network.target
+Requires=NetworkManager.service
+After=NetworkManager.service
 
 [Service]
+Type=notify
 ExecStart=/usr/local/bin/pac4cli -p 3128 --systemd --config /etc/pac4cli/pac4cli.config --loglevel warn
 Restart=always
+NotifyAccess=all
 
 [Install]
 WantedBy=network.target

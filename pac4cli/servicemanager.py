@@ -7,6 +7,7 @@ LogHandler = logging.NullHandler
 def notify_ready():
     pass
 
+
 if 'Linux' == platform.system():
     import systemd.daemon
     import systemd.journal
@@ -18,3 +19,5 @@ if 'Linux' == platform.system():
         LogHandler = systemd.journal.JournaldLogHandler
         def notify_ready():
             systemd.daemon.notify(systemd.daemon.Notification.READY)
+    else:
+        raise AssertionError("Something is wrong with the systemd module we imported")

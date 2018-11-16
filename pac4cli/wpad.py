@@ -6,6 +6,7 @@ from twisted.internet.defer import inlineCallbacks
 import logging
 logger = logging.getLogger('pac4cli')
 
+
 if 'Linux' == platform.system():
     import txdbus.client
     # work around txdbus assuming python 2
