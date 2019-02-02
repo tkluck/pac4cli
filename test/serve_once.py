@@ -23,4 +23,3 @@ if __name__ == "__main__":
     data = sys.stdin.buffer.read()
     data = data.replace(b"\n", b"\r\n")
     conn.sendall(data)
-

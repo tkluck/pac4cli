@@ -1,13 +1,14 @@
-import logging
-logger = logging.getLogger('pac4cli')
-
+import pacparser
 import re
 
 from twisted.web import proxy
 from twisted.python.compat import urllib_parse
-import pacparser
 
 from . import portforward
+
+import logging
+logger = logging.getLogger('pac4cli')
+
 
 def split_host_port(destination):
     '''
@@ -36,12 +37,13 @@ def split_host_port(destination):
     else:
         return (destination, None)
 
+
 class WPADProxyRequest(proxy.ProxyRequest):
 
     force_proxy = None
     force_direct = None
 
-    proxy_suggestion_parser = re.compile( r'(DIRECT$|PROXY) (.*)' )
+    proxy_suggestion_parser = re.compile(r'(DIRECT$|PROXY) (.*)')
 
     def process(self):
         method = self.method.decode('ascii')
@@ -63,7 +65,11 @@ class WPADProxyRequest(proxy.ProxyRequest):
         self.content.seek(0, 0)
         s = self.content.read()
 
-        proxy_suggestion = self.force_proxy or self.force_direct or pacparser.find_proxy('http://{}'.format(host))
+        proxy_suggestion = (
+            self.force_proxy or
+            self.force_direct or
+            pacparser.find_proxy('http://{}'.format(host))
+        )
 
         proxy_suggestions = proxy_suggestion.split(";")
         parsed_proxy_suggestion = self.proxy_suggestion_parser.match(proxy_suggestions[0])
@@ -82,7 +88,8 @@ class WPADProxyRequest(proxy.ProxyRequest):
                         s,
                         self,
                     )
-                    logger.info('%s %s; forwarding request to %s:%s', method, uri, proxy_host, proxy_port)
+                    logger.info('%s %s; forwarding request to %s:%s',
+                                method, uri, proxy_host, proxy_port)
                 else:
                     self.transport.unregisterProducer()
                     self.transport.pauseProducing()
@@ -93,7 +100,8 @@ class WPADProxyRequest(proxy.ProxyRequest):
                     clientFactory = CONNECTProtocolForwardFactory(host, port)
                     clientFactory.setServer(rawConnectionProtocol)
 
-                    logger.info('%s %s; establishing tunnel through %s:%s', method, uri, proxy_host, proxy_port)
+                    logger.info('%s %s; establishing tunnel through %s:%s',
+                                method, uri, proxy_host, proxy_port)
 
                 self.reactor.connectTCP(proxy_host, proxy_port, clientFactory)
                 return
@@ -130,9 +138,10 @@ class WPADProxyRequest(proxy.ProxyRequest):
             clientFactory.protocol = CONNECTProtocolClient
             # we don't do connectSSL, as the handshake is taken
             # care of by the client, and we only forward it
-            logger.info('%s %s; establishing tunnel to %s:%s', method, uri, host, port)
-            self.reactor.connectTCP(host, port,
-                                clientFactory)
+            logger.info('%s %s; establishing tunnel to %s:%s',
+                        method, uri, host, port)
+            self.reactor.connectTCP(
+                host, port, clientFactory)
 
 
 class CONNECTProtocolClient(portforward.ProxyClient):
@@ -144,7 +153,7 @@ class CONNECTProtocolClient(portforward.ProxyClient):
 class CONNECTProtocolForward(portforward.ProxyClient):
     def connectionMade(self):
         self.transport.write(
-                "CONNECT {}:{} HTTP/1.1\r\nhost: {}\r\n\r\n".format(
+            "CONNECT {}:{} HTTP/1.1\r\nhost: {}\r\n\r\n".format(
                 self.factory.host,
                 self.factory.port,
                 self.factory.host,
@@ -152,11 +161,11 @@ class CONNECTProtocolForward(portforward.ProxyClient):
         )
         portforward.ProxyClient.connectionMade(self)
 
+
 class CONNECTProtocolForwardFactory(portforward.ProxyClientFactory):
     protocol = CONNECTProtocolForward
+
     def __init__(self, host, port):
             portforward.ProxyClientFactory.__init__(self)
             self.host = host
             self.port = port
-
-
