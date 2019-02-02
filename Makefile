@@ -90,7 +90,7 @@ endif
 
 .PHONY: install-python-lib
 install-python-lib:
-	$(PYTHON) setup.py install --root "$(DESTDIR)" --prefix "$(prefix)"
+	PAC4CLI_MAKE_INSTALL=1 $(PYTHON) setup.py install --root "$(DESTDIR)" --prefix "$(prefix)"
 
 .PHONY: install-bin
 install-bin:
