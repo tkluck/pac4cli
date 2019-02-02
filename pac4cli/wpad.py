@@ -13,10 +13,18 @@ if 'Linux' == platform.system():
     txdbus.client.basestring = str
 
 
+_dbusclient = None
+@inlineCallbacks
+def get_dbus_client():
+    global _dbusclient
+    if _dbusclient is None or not _dbusclient.connected:
+        _dbusclient = yield txdbus.client.connect(reactor, 'system')
+    return _dbusclient
+
 # TODO: move this to a more appropriate module
 @inlineCallbacks
 def install_network_state_changed_callback(reactor, callback):
-    dbus = yield txdbus.client.connect(reactor, 'system')
+    dbus = yield get_dbus_client()
     nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
                                    '/org/freedesktop/NetworkManager')
     nm.notifyOnSignal('StateChanged', callback)
@@ -33,7 +41,7 @@ class WPAD:
             logger.info("No NetworkManager available.")
             return res
 
-        dbus = yield txdbus.client.connect(self.reactor, 'system')
+        dbus = yield get_dbus_client()
         nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
                                        '/org/freedesktop/NetworkManager')
         active_connection_paths = yield nm.callRemote('Get',
@@ -69,7 +77,7 @@ class WPAD:
             logger.info("No NetworkManager available.")
             return None
 
-        dbus = yield txdbus.client.connect(self.reactor, 'system')
+        dbus = yield get_dbus_client()
         nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
                                        '/org/freedesktop/NetworkManager')
         active_connection_paths = yield nm.callRemote('Get',
