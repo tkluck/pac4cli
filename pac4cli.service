@@ -8,6 +8,7 @@ Type=notify
 ExecStart=/usr/local/bin/pac4cli -p 3128 --systemd --config /etc/pac4cli/pac4cli.config --loglevel warn
 Restart=always
 NotifyAccess=all
+DynamicUser=true
 
 [Install]
 WantedBy=network.target
