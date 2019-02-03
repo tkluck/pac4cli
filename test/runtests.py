@@ -69,7 +69,8 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
                 curl("http://www.booking.com")
                 self.assertTrue(True)
         finally:
-            proxy.proc.kill()
+            proxy.proc.terminate()
+            proxy.proc.wait()
 
     def test_proxied_proxy(self):
         proxy1 = pac4cli["-F", "DIRECT", "-p", "23128"] & BG
@@ -81,8 +82,10 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
                 curl("http://www.booking.com")
                 self.assertTrue(True)
         finally:
-            proxy2.proc.kill()
-            proxy1.proc.kill()
+            proxy2.proc.terminate()
+            proxy2.proc.wait()
+            proxy1.proc.terminate()
+            proxy1.proc.wait()
 
     def test_proxy_from_dhcp_wpad(self):
         # set up mock dbus with dhcp settings
@@ -148,10 +151,14 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
                     "Hello from fake proxy no 2!",
                 )
         finally:
-            proxy_to_test.proc.kill()
-            fake_proxy_2.proc.kill()
-            fake_proxy_1.proc.kill()
-            static_server.proc.kill()
+            proxy_to_test.proc.terminate()
+            proxy_to_test.proc.wait()
+            fake_proxy_2.proc.terminate()
+            fake_proxy_2.proc.wait()
+            fake_proxy_1.proc.terminate()
+            fake_proxy_1.proc.wait()
+            static_server.proc.terminate()
+            static_server.proc.wait()
 
 
 if __name__ == '__main__':

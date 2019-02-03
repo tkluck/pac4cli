@@ -2,17 +2,17 @@ import logging
 logger = logging.getLogger('pac4cli')
 
 from argparse import ArgumentParser
+from os import path
+import os
+import tempfile
+import signal
+import subprocess
 
 from twisted.internet import reactor
-from twisted.web import proxy
-from twisted.web.http import HTTPFactory
 from twisted.web.client import Agent, readBody
 from twisted.internet.defer import inlineCallbacks
 
-import pacparser
-
 from .wpad import WPAD, install_network_state_changed_callback
-from .pac4cli import WPADProxyRequest
 from . import servicemanager
 
 
@@ -26,18 +26,45 @@ parser.add_argument("-p", "--port", type=int, metavar="PORT")
 parser.add_argument("-F", "--force-proxy", type=str, metavar="PROXY STRING")
 parser.add_argument("--loglevel", type=str, default="info", metavar="LEVEL")
 parser.add_argument("--systemd", action='store_true')
+parser.add_argument("--runtimedir", type=str, default=tempfile.mkdtemp())
 
-args= parser.parse_args()
+args = parser.parse_args()
 
-@inlineCallbacks
+server_process = None
+
 def start_server(interface, port, reactor):
-    factory = HTTPFactory()
-    factory.protocol = proxy.Proxy
-    factory.protocol.requestFactory = WPADProxyRequest
+    write_pac_file(None)
+    tinyproxy_conf_path = path.join(args.runtimedir, "tinyproxy.conf")
+    with open(tinyproxy_conf_path, "w") as config:
+        config.write("""
+            Listen {interface}
+            Port {port}
+            MaxClients 1
+            StartServers 1
+            PacUpstream "{pac_filename}"
+        """.format(
+            interface=interface,
+            port=port,
+            pac_filename=path.join(args.runtimedir, "wpad.dat")))
+    global server_process
+    server_process = subprocess.Popen(["/home/tkluck/src/pac4cli/tinyproxy/src/tinyproxy",
+        "-d", "-c", tinyproxy_conf_path])
+    # TODO: make tinyproxy send this signal
+    servicemanager.notify_ready()
 
-    yield reactor.listenTCP(port, factory, interface=interface)
-
-    servicemanager.notify_ready();
+def write_pac_file(script):
+    if script is None:
+        script = b"""
+            function FindProxyForURL(url, host) {
+                return "DIRECT";
+            }
+        """
+    pac_file_path = path.join(args.runtimedir, "wpad.dat")
+    with open(pac_file_path, "wb") as pac_file:
+        pac_file.write(script)
+        os.sync()
+    if server_process is not None:
+        server_process.send_signal(signal.SIGHUP)
 
 @inlineCallbacks
 def get_possible_configuration_locations():
@@ -56,9 +83,7 @@ def updateWPAD(signum=None, stackframe=None):
     logger.info("Updating WPAD configuration...")
     wpad_urls = yield get_possible_configuration_locations()
 
-    # use DIRECT temporarily; who knows what state the below gets pacparser
-    # in
-    WPADProxyRequest.force_direct = 'DIRECT'
+    write_pac_file(None)
     for wpad_url in wpad_urls:
         logger.info("Trying %s...", wpad_url)
         try:
@@ -68,25 +93,22 @@ def updateWPAD(signum=None, stackframe=None):
             response = yield agent.request(b'GET', wpad_url.encode('ascii'))
             body = yield readBody(response)
             logger.info("...found. Parsing configuration...")
-            pacparser.parse_pac_string(body.decode('ascii'))
+            write_pac_file(body)
             logger.info("Updated configuration")
-            WPADProxyRequest.force_direct = None
             break
         except Exception as e:
-            logger.info("...didn't work")
+            logger.info("...didn't work", exc_info=True)
             pass
     else:
         logger.info("None of the tried urls seem to have worked; falling back to direct")
-        WPADProxyRequest.force_direct = 'DIRECT'
 
 
 @inlineCallbacks
 def main(args):
     try:
-        pacparser.init()
-        WPADProxyRequest.force_direct = 'DIRECT' # direct, until we have a configuration
         if args.force_proxy:
-            WPADProxyRequest.force_proxy = args.force_proxy
+            # TODO: pass to tinyproxy configuration
+            pass
 
         try:
             yield install_network_state_changed_callback(reactor, updateWPAD)
@@ -119,4 +141,9 @@ if __name__ == "__main__":
     log_handler.setFormatter(logging.Formatter(fmt="%(levelname)s [%(process)d]: %(name)s: %(message)s"))
     main(args)
     reactor.run()
-    logger.info("Shutdown")
+    logger.info("Shutdown...")
+    if server_process is not None:
+        logger.info("Terminating server process...")
+        server_process.terminate()
+        server_process.wait()
+    logger.info("Shutdown complete")

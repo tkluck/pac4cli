@@ -1,3 +1,6 @@
 [submodule "pacparser"]
 	path = pacparser
 	url = https://github.com/pacparser/pacparser.git
+[submodule "tinyproxy"]
+	path = tinyproxy
+	url = https://github.com/pac4cli/tinyproxy.git
