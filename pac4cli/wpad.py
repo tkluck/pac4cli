@@ -1,6 +1,7 @@
 import platform
 import configparser
 
+from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
 
 import logging
