@@ -1,7 +1,6 @@
 import platform
 import configparser
 
-from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
 
 import logging
@@ -16,7 +15,7 @@ if 'Linux' == platform.system():
 
 _dbusclient = None
 @inlineCallbacks
-def get_dbus_client():
+def get_dbus_client(reactor):
     global _dbusclient
     if _dbusclient is None or not _dbusclient.connected:
         _dbusclient = yield txdbus.client.connect(reactor, 'system')
@@ -25,7 +24,7 @@ def get_dbus_client():
 # TODO: move this to a more appropriate module
 @inlineCallbacks
 def install_network_state_changed_callback(reactor, callback):
-    dbus = yield get_dbus_client()
+    dbus = yield get_dbus_client(reactor)
     nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
                                     '/org/freedesktop/NetworkManager')
     nm.notifyOnSignal('StateChanged', callback)
@@ -43,7 +42,7 @@ class WPAD:
             logger.info("No NetworkManager available.")
             return res
 
-        dbus = yield get_dbus_client()
+        dbus = yield get_dbus_client(self.reactor)
         nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
                                         '/org/freedesktop/NetworkManager')
         active_connection_paths = yield nm.callRemote(
@@ -82,7 +81,7 @@ class WPAD:
             logger.info("No NetworkManager available.")
             return None
 
-        dbus = yield get_dbus_client()
+        dbus = yield get_dbus_client(self.reactor)
         nm = yield dbus.getRemoteObject('org.freedesktop.NetworkManager',
                                         '/org/freedesktop/NetworkManager')
         active_connection_paths = yield nm.callRemote(
