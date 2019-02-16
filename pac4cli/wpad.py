@@ -2,6 +2,7 @@ import platform
 import configparser
 
 from twisted.internet.defer import inlineCallbacks
+from tld import get_tld
 
 import logging
 logger = logging.getLogger('pac4cli')
@@ -36,7 +37,7 @@ class WPAD:
         self.config_file = config_file
 
     @inlineCallbacks
-    def get_dhcp_domains(self):
+    def get_FQDNs(self):
         res = []
         if 'Linux' != platform.system():
             logger.info("No NetworkManager available.")
@@ -76,7 +77,7 @@ class WPAD:
         return res
 
     @inlineCallbacks
-    def get_wpad_url(self):
+    def get_dhcp_url(self):
         if 'Linux' != platform.system():
             logger.info("No NetworkManager available.")
             return None
@@ -130,12 +131,41 @@ class WPAD:
             return None
 
     @inlineCallbacks
+    def get_dns_wpad_urls(self, domains):
+        dns_urls = []
+        for domain in domains:
+            # We need to be aware of the TLD in the passed domains, so as to 
+            # avoid looking for the wpad url outside the business/company/entity
+            # e.g.: for http://hostname.subdomain.example.co.uk, we want to try: 
+            # http://wpad.hostname.subdomain.example.co.uk/wpad.dat
+            # http://wpad.subdomain.example.co.uk/wpad.dat
+            # http://wpad.example.co.uk/wpad.dat
+            # and avoid trying:
+            # http://wpad.co.uk/wpad.dat
+            #
+            # The tld package is using Mozilla's database for top level domains.
+            logger.info("Found fqdn: '%s'", domain)
+            tld_res = yield get_tld(domain, as_object=True, fix_protocol=True)
+            logger.debug("tld_res.subdomain: %s", tld_res.subdomain)
+            logger.debug("tld_res.fld: %s", tld_res.fld)
+            domain_parts = tld_res.subdomain.split('.')
+            for i in range(1, len(domain_parts) + 1):
+                level_domain = '.'.join(domain_parts[i:])
+                wpad_search_domain = tld_res.fld
+                if level_domain:
+                    wpad_search_domain = '.'.join([level_domain, tld_res.fld])
+                logger.debug("appending: '%s'", "http://wpad.{}/wpad.dat".format(wpad_search_domain))
+                dns_urls.append("http://wpad.{}/wpad.dat".format(wpad_search_domain))
+        return dns_urls
+
+    @inlineCallbacks
     def getUrls(self):
+        wpad_urls = []
         if self.config_file:
             try:
                 wpad_url = self.get_config_wpad_url(self.config_file)
                 if wpad_url is not None:
-                    return [wpad_url]
+                    wpad_urls.append(wpad_url)
             except Exception as e:
                 logger.warning("Problem reading configuration file %s",
                                self.config_file, exc_info=True)
@@ -143,13 +173,14 @@ class WPAD:
             logger.debug("No configuration file specified")
 
         logger.info("Trying to get wpad url from NetworkManager DHCP...")
-        wpad_url = yield self.get_wpad_url()
+        wpad_url = yield self.get_dhcp_url()
         if wpad_url is not None:
-            return [wpad_url]
+            wpad_urls.append(wpad_url)
         else:
             logger.info("Trying to get wpad url from NetworkManager domains...")
-            domains = yield self.get_dhcp_domains()
-            return [
-                "http://wpad.{}/wpad.dat".format(domain)
-                for domain in domains
-            ]
+            domains = yield self.get_FQDNs()
+            dns_urls = yield self.get_dns_wpad_urls(domains)
+            for domain in domains:
+                wpad_urls.append(dns_urls)
+
+        return wpad_urls
