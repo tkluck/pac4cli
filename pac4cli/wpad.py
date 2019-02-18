@@ -130,7 +130,6 @@ class WPAD:
             logger.info("No wpad url specified")
             return None
 
-    @inlineCallbacks
     def get_dns_wpad_urls(self, domains):
         dns_urls = []
         for domain in domains:
@@ -145,17 +144,17 @@ class WPAD:
             #
             # The tld package is using Mozilla's database for top level domains.
             logger.info("Found fqdn: '%s'", domain)
-            tld_res = yield get_tld(domain, as_object=True, fix_protocol=True)
+            tld_res = get_tld(domain, as_object=True, fix_protocol=True)
             logger.debug("tld_res.subdomain: %s", tld_res.subdomain)
             logger.debug("tld_res.fld: %s", tld_res.fld)
             domain_parts = tld_res.subdomain.split('.')
-            for i in range(1, len(domain_parts) + 1):
+            for i in range(1, len(domain_parts)):
                 level_domain = '.'.join(domain_parts[i:])
-                wpad_search_domain = tld_res.fld
-                if level_domain:
-                    wpad_search_domain = '.'.join([level_domain, tld_res.fld])
+                wpad_search_domain = '.'.join([level_domain, tld_res.fld])
                 logger.debug("appending: '%s'", "http://wpad.{}/wpad.dat".format(wpad_search_domain))
                 dns_urls.append("http://wpad.{}/wpad.dat".format(wpad_search_domain))
+            dns_urls.append("http://wpad.{}/wpad.dat".format(tld_res.fld))
+
         return dns_urls
 
     @inlineCallbacks
@@ -179,8 +178,7 @@ class WPAD:
         else:
             logger.info("Trying to get wpad url from NetworkManager domains...")
             domains = yield self.get_FQDNs()
-            dns_urls = yield self.get_dns_wpad_urls(domains)
-            for domain in domains:
-                wpad_urls.append(dns_urls)
+            dns_urls = self.get_dns_wpad_urls(domains)
+            wpad_urls.extend(dns_urls)
 
         return wpad_urls
