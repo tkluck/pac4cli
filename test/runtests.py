@@ -156,14 +156,14 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
     def test_get_dns_wpad_urls_hostname_only(self):
         from pac4cli.wpad import WPAD
         wpad = WPAD(None, None)
-        dns_urls = wpad.get_dns_wpad_urls(["hostname.example.com"])
+        dns_urls = wpad.get_dns_wpad_urls(["example.com"])
         self.assertEqual(len(dns_urls), 1)
         self.assertEqual(dns_urls[0], "http://wpad.example.com/wpad.dat")
 
     def test_get_dns_wpad_urls_hostname_and_subdomain(self):
         from pac4cli.wpad import WPAD
         wpad = WPAD(None, None)
-        dns_urls = wpad.get_dns_wpad_urls(["hostname.subdomain.example.com"])
+        dns_urls = wpad.get_dns_wpad_urls(["subdomain.example.com"])
         self.assertEqual(len(dns_urls), 2)
         self.assertEqual(dns_urls[0], "http://wpad.subdomain.example.com/wpad.dat")
         self.assertEqual(dns_urls[1], "http://wpad.example.com/wpad.dat")
