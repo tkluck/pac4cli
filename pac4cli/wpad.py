@@ -147,12 +147,13 @@ class WPAD:
             tld_res = get_tld(domain, as_object=True, fix_protocol=True)
             logger.debug("tld_res.subdomain: %s", tld_res.subdomain)
             logger.debug("tld_res.fld: %s", tld_res.fld)
-            domain_parts = tld_res.subdomain.split('.')
-            for i in range(1, len(domain_parts)):
-                level_domain = '.'.join(domain_parts[i:])
-                wpad_search_domain = '.'.join([level_domain, tld_res.fld])
-                logger.debug("appending: '%s'", "http://wpad.{}/wpad.dat".format(wpad_search_domain))
-                dns_urls.append("http://wpad.{}/wpad.dat".format(wpad_search_domain))
+            domain_parts = [ p for p in tld_res.subdomain.split('.') if p != '' ]
+            print(domain_parts)
+            for i in range(len(domain_parts)):
+                parts = ["wpad"] + domain_parts[i:] + [tld_res.fld]
+                wpad_search_domain = '.'.join(parts)
+                print(wpad_search_domain)
+                dns_urls.append("http://{}/wpad.dat".format(wpad_search_domain))
             dns_urls.append("http://wpad.{}/wpad.dat".format(tld_res.fld))
 
         return dns_urls
