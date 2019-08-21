@@ -56,7 +56,11 @@ class WPADProxyRequest(proxy.ProxyRequest):
             decoded = parsed[1].decode('ascii')
             host, port = split_host_port(decoded)
             if port is None:
-                port = 80
+                scheme = parsed[0]
+                if scheme == 'https':
+                    port = 443
+                else:
+                    port = 80
             rest = urllib_parse.urlunparse((b'', b'') + parsed[2:])
             if not rest:
                 rest = rest + b'/'
