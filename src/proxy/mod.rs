@@ -17,7 +17,7 @@ use self::connection::two_way_pipe;
 use self::protocol::Preamble;
 use pacparser::ProxySuggestion;
 
-pub fn create_server<F>(port: u16, find_proxy: F) -> Box<Future<Item=(),Error=()>+Send>
+pub fn create_server<F>(port: u16, find_proxy: F) -> Box<dyn Future<Item=(),Error=()>+Send>
     where F: 'static+Send+Sync+Fn(&str, &str) -> ProxySuggestion
 {
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);

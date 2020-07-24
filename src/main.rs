@@ -139,7 +139,7 @@ fn main() {
             proxy::create_server(options.port, find_proxy)
         };
 
-        let handle_sighups : Box<Future<Item=(),Error=()>> = {
+        let handle_sighups : Box<dyn Future<Item=(),Error=()>> = {
             if options.force_proxy.is_none() && force_wpad_url.is_none() {
                 let handle = core.handle();
                 let auto_config_handler = auto_config_handler.clone();
@@ -173,7 +173,7 @@ fn main() {
             }
         };
 
-        let startup_config : Box<Future<Item=(),Error=()>>= {
+        let startup_config : Box<dyn Future<Item=(),Error=()>>= {
             let auto_config_handler = auto_config_handler.clone();
             let handle = core.handle();
             if options.force_proxy.is_none() {

@@ -14,7 +14,7 @@ use hyper::{Client,StatusCode};
 
 use pacparser;
 
-fn get_list_of_paths<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<Future<Item=Vec<Path<'static>>, Error=dbus::Error>>
+fn get_list_of_paths<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<dyn Future<Item=Vec<Path<'static>>, Error=dbus::Error>>
     where P: Into<Path<'static>> {
     let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
     let method_call = aconn.method_call(m).unwrap()
@@ -25,7 +25,7 @@ fn get_list_of_paths<P>(aconn: &AConnection, object_path: P, interface: &str, pr
     return Box::new(method_call);
 }
 
-fn get_path<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<Future<Item=Path<'static>, Error=dbus::Error>>
+fn get_path<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<dyn Future<Item=Path<'static>, Error=dbus::Error>>
     where P: Into<Path<'static>> {
     let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
     let method_call = aconn.method_call(m).unwrap()
@@ -36,7 +36,7 @@ fn get_path<P>(aconn: &AConnection, object_path: P, interface: &str, property: &
     return Box::new(method_call);
 }
 
-fn get_dict<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<Future<Item=HashMap<String,Variant<String>>, Error=dbus::Error>>
+fn get_dict<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<dyn Future<Item=HashMap<String,Variant<String>>, Error=dbus::Error>>
     where P: Into<Path<'static>> {
     let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
     let method_call = aconn.method_call(m).unwrap()
@@ -47,7 +47,7 @@ fn get_dict<P>(aconn: &AConnection, object_path: P, interface: &str, property: &
     return Box::new(method_call);
 }
 
-fn get_list_of_strings<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<Future<Item=Vec<String>, Error=dbus::Error>>
+fn get_list_of_strings<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<dyn Future<Item=Vec<String>, Error=dbus::Error>>
     where P: Into<Path<'static>> {
     let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
     let method_call = aconn.method_call(m).unwrap()
@@ -61,20 +61,20 @@ fn get_list_of_strings<P>(aconn: &AConnection, object_path: P, interface: &str, 
 enum State {
     Start,
     ReceiveActiveConnections {
-        paths_future: Box<Future<Item=Vec<Path<'static>>,Error=dbus::Error>>,
+        paths_future: Box<dyn Future<Item=Vec<Path<'static>>,Error=dbus::Error>>,
     },
     LoopConnections,
     ReceiveDhcp4Config {
-        dhcp4_config_future: Box<Future<Item=Path<'static>,Error=dbus::Error>>,
+        dhcp4_config_future: Box<dyn Future<Item=Path<'static>,Error=dbus::Error>>,
     },
     ReceiveDhcp4Options {
-        dhcp4_options_future: Box<Future<Item=HashMap<String,Variant<String>>,Error=dbus::Error>>
+        dhcp4_options_future: Box<dyn Future<Item=HashMap<String,Variant<String>>,Error=dbus::Error>>
     },
     ReceiveIP4Config {
-        ip4_config_future: Box<Future<Item=Path<'static>,Error=dbus::Error>>,
+        ip4_config_future: Box<dyn Future<Item=Path<'static>,Error=dbus::Error>>,
     },
     ReceiveDomain {
-        domain_future: Box<Future<Item=Vec<String>,Error=dbus::Error>>,
+        domain_future: Box<dyn Future<Item=Vec<String>,Error=dbus::Error>>,
     },
     NextConnection,
     Done,
@@ -175,7 +175,7 @@ impl Future for WPADDiscoverer {
      }
  }
 
-pub fn get_wpad_urls(handle: &Handle) -> Box<Future<Item=Vec<String>,Error=()>> {
+pub fn get_wpad_urls(handle: &Handle) -> Box<dyn Future<Item=Vec<String>,Error=()>> {
 
     let task = WPADDiscoverer::new(handle)
     .map_err(|dbus_err| {
@@ -194,7 +194,7 @@ pub fn get_wpad_urls(handle: &Handle) -> Box<Future<Item=Vec<String>,Error=()>> 
     return Box::new(task);
 }
 
-pub fn retrieve_first_working_url(handle: &Handle, url_strings: Vec<String>) -> Box<Future<Item=Option<String>,Error=()>> {
+pub fn retrieve_first_working_url(handle: &Handle, url_strings: Vec<String>) -> Box<dyn Future<Item=Option<String>,Error=()>> {
 
     let http_client = Client::new(handle);
 

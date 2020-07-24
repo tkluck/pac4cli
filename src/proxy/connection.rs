@@ -216,7 +216,7 @@ impl<T: AsyncRead+AsyncWrite,S: AsyncRead+AsyncWrite> Future for TwoWayPipe<T, S
     }
 }
 
-pub fn two_way_pipe<T,S>(t:T, s:S) -> Box<Future<Item=(),Error=std::io::Error>+Send>
+pub fn two_way_pipe<T,S>(t:T, s:S) -> Box<dyn Future<Item=(),Error=std::io::Error>+Send>
 where
     T: AsyncRead+AsyncWrite+Send+'static,
     S: AsyncRead+AsyncWrite+Send+'static {
