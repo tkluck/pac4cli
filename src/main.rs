@@ -1,31 +1,15 @@
+
+use std::sync::Arc;
+
 #[macro_use]
 extern crate slog;
 #[macro_use]
 extern crate slog_scope;
-extern crate slog_term;
-extern crate slog_journald;
-
-extern crate argparse;
-extern crate ini;
-extern crate tokio;
-extern crate tokio_core;
-#[macro_use]
-extern crate futures;
-extern crate uri;
-extern crate dbus;
-extern crate dbus_tokio;
-extern crate tokio_signal;
-extern crate hyper;
-
-use std::sync::Arc;
 
 use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
 use ini::Ini;
 use slog::Drain;
 use slog_journald::JournaldDrain;
-use tokio_core::reactor::Core;
-use futures::{future,Future,Stream};
-use futures::future::Either;
 use tokio_signal::unix::{Signal, SIGHUP};
 
 mod ringbuffer;
@@ -45,7 +29,8 @@ struct Options {
     systemd: bool,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let mut options = Options {
         config:      None,
         port:        3128,
@@ -95,123 +80,99 @@ fn main() {
             slog_scope::set_global_logger(log)
         }
     };
-    slog_scope::scope(&slog_scope::logger().new(slog_o!()), || {
 
-        let force_wpad_url = if let Some(file) = options.config {
-            info!("Loading configuration file {}", file);
-            let conf = Ini::load_from_file(file).expect("Failed to load config file");
-            if let Some(section) = conf.section(Some("wpad".to_owned())) {
-                if let Some(url) = section.get("url") {
-                    Some(url.clone())
-                } else {
-                    None
-                }
+    let force_wpad_url = if let Some(file) = options.config {
+        info!("Loading configuration file {}", file);
+        let conf = Ini::load_from_file(file).expect("Failed to load config file");
+        if let Some(section) = conf.section(Some("wpad".to_owned())) {
+            if let Some(url) = section.get("url") {
+                Some(url.clone())
             } else {
                 None
             }
         } else {
             None
-        };
+        }
+    } else {
+        None
+    };
 
-        pacparser::init().expect("Failed to initialize pacparser");
+    pacparser::init().expect("Failed to initialize pacparser");
 
-        let mut core = Core::new().unwrap();
+    let auto_config_handler = Arc::new(AutoConfigHandler::new());
 
-        let auto_config_handler = Arc::new(AutoConfigHandler::new());
-
-        let find_proxy = {
-            let auto_config_state = auto_config_handler.get_state_ref();
-            let forced_proxy = options.force_proxy.clone();
-            move |url: &str, host: &str| {
-                let state = auto_config_state.lock().expect("Issue locking auto config state");
-                match *state {
-                    wpad::AutoConfigState::Discovering => ProxySuggestion::Direct,
-                    wpad::AutoConfigState::Direct => ProxySuggestion::Direct,
-                    wpad::AutoConfigState::PAC => match forced_proxy {
-                        Some(ref proxy_suggestion) => proxy_suggestion.clone(),
-                        None => find_proxy_suggestions(url, host).remove(0),
-                    },
-                }
+    let find_proxy = {
+        let auto_config_state = auto_config_handler.get_state_ref();
+        let forced_proxy = options.force_proxy.clone();
+        move |url: &str, host: &str| {
+            let state = auto_config_state.lock().expect("Issue locking auto config state");
+            match *state {
+                wpad::AutoConfigState::Discovering => ProxySuggestion::Direct,
+                wpad::AutoConfigState::Direct => ProxySuggestion::Direct,
+                wpad::AutoConfigState::PAC => match forced_proxy {
+                    Some(ref proxy_suggestion) => proxy_suggestion.clone(),
+                    None => find_proxy_suggestions(url, host).remove(0),
+                },
             }
-        };
+        }
+    };
 
-        let serve = {
-            proxy::create_server(options.port, find_proxy)
-        };
 
-        let handle_sighups : Box<dyn Future<Item=(),Error=()>> = {
-            if options.force_proxy.is_none() && force_wpad_url.is_none() {
-                let handle = core.handle();
-                let auto_config_handler = auto_config_handler.clone();
-                let task = Signal::new(SIGHUP, &handle).flatten_stream()
-                .map_err(|err| {
-                    warn!("Error retrieving SIGHUPs: {:?}", err)
-                })
-                .and_then(move |_| {
-                    let handle = handle.clone();
-                    let auto_config_handler = auto_config_handler.clone();
-                    info!("SIGHUP received");
-                    wpad::get_wpad_urls(&handle)
-                    .and_then(move |urls| {
-                        wpad::retrieve_first_working_url(&handle, urls)
-                    })
-                    .map(move |wpad| {
-                        auto_config_handler.set_current_wpad_script(wpad)
-                    })
-                })
-                .for_each(|_| {
-                    future::ok(())
-                })
-                .map_err(|err| {
-                    warn!("Error handling SIGHUP: {:?}", err)
-                });
-                Box::new(task)
-            } else {
-                // if we get the proxy from arguments or the config file,
-                // no need to listen for SIGHUPs.
-                Box::new(future::ok(()))
-            }
-        };
-
-        let startup_config : Box<dyn Future<Item=(),Error=()>>= {
-            let auto_config_handler = auto_config_handler.clone();
+    /*
+    let handle_sighups : Box<dyn Future<Item=(),Error=()>> = {
+        if options.force_proxy.is_none() && force_wpad_url.is_none() {
             let handle = core.handle();
-            if options.force_proxy.is_none() {
-                let get_urls = match force_wpad_url {
-                    Some(ref url) => Either::A(future::ok([url.clone()].to_vec())),
-                    None => Either::B(wpad::get_wpad_urls(&handle)),
-                };
+            let auto_config_handler = auto_config_handler.clone();
+            let task = Signal::new(SIGHUP, &handle).flatten_stream()
+            .map_err(|err| {
+                warn!("Error retrieving SIGHUPs: {:?}", err)
+            })
+            .and_then(move |_| {
                 let handle = handle.clone();
-                let task = get_urls
+                let auto_config_handler = auto_config_handler.clone();
+                info!("SIGHUP received");
+                wpad::get_wpad_urls(&handle)
                 .and_then(move |urls| {
                     wpad::retrieve_first_working_url(&handle, urls)
                 })
                 .map(move |wpad| {
                     auto_config_handler.set_current_wpad_script(wpad)
-                });
-                Box::new(task)
-            } else {
-                Box::new(future::ok(()))
-            }
+                })
+            })
+            .for_each(|_| {
+                future::ok(())
+            })
+            .map_err(|err| {
+                warn!("Error handling SIGHUP: {:?}", err)
+            });
+            Box::new(task)
+        } else {
+            // if we get the proxy from arguments or the config file,
+            // no need to listen for SIGHUPs.
+            Box::new(future::ok(()))
+        }
+    };
+    */
+
+    if options.force_proxy.is_none() {
+        let urls = match force_wpad_url {
+            Some(ref url) => [url.clone()].to_vec(),
+            None => wpad::get_wpad_urls().await.unwrap(),
         };
+        let wpad = wpad::retrieve_first_working_url(urls).await.unwrap();
+        auto_config_handler.set_current_wpad_script(wpad)
+    }
 
-        let start_server = startup_config
-        .and_then(|_| {
-            serve.join(handle_sighups)
-        })
-        .map_err(|err| {
-            error!("Can't start server: {:?}", err)
-        });
+    // there is still a race condition here, as the socket is
+    // only bound lazily by tokio's futures/streams. The API has
+    // no way of hooking in to the moment that the socket has been
+    // bound (before any connections have been accepted), so this
+    // is as close as we'll get.
+    systemd::notify_ready();
 
-        // there is still a race condition here, as the socket is
-        // only bound lazily by tokio's futures/streams. The API has
-        // no way of hooking in to the moment that the socket has been
-        // bound (before any connections have been accepted), so this
-        // is as close as we'll get.
-        systemd::notify_ready();
+    proxy::serve(options.port, find_proxy).await;
 
-        core.run(start_server).expect("Issue running server!");
+    pacparser::cleanup();
 
-        pacparser::cleanup();
-    });
+    info!("Clean exit");
 }

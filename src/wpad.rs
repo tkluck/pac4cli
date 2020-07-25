@@ -1,83 +1,45 @@
-use std::rc::Rc;
 use std::collections::HashMap;
 use std::sync::{Mutex,Arc};
+use std::time::Duration;
 
 use dbus;
-use dbus::{BusType,Connection,Message,Path};
+use dbus::Path;
+use dbus::nonblock::{Proxy, SyncConnection};
 use dbus::arg::Variant;
-use tokio::prelude::*;
-use tokio_core::reactor::Handle;
-use futures::future::{loop_fn,Either,Loop};
-use dbus_tokio::AConnection;
-use hyper;
-use hyper::{Client,StatusCode};
+use dbus_tokio::connection;
+use reqwest;
+use reqwest::StatusCode;
 
-use pacparser;
+use crate::pacparser;
 
-fn get_list_of_paths<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<dyn Future<Item=Vec<Path<'static>>, Error=dbus::Error>>
+const TIMEOUT : Duration = Duration::from_secs(2);
+
+async fn get_list_of_paths<P>(dbus_conn: &SyncConnection, object_path: P, interface: &str, property: &str) -> Result<Vec<Path<'static>>, dbus::Error>
     where P: Into<Path<'static>> {
-    let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
-    let method_call = aconn.method_call(m).unwrap()
-        .map(|m| {
-            let res : Variant<Vec<Path<'static>>> = m.get1().expect("failed to parse list of paths");
-            res.0
-        });
-    return Box::new(method_call);
+    let proxy = Proxy::new("org.freedesktop.NetworkManager", object_path, TIMEOUT, dbus_conn);
+    let (res,) : (Variant<Vec<Path<'static>>>,) = proxy.method_call("org.freedesktop.DBus.Properties", "Get", (interface, property)).await?;
+    return Ok(res.0)
 }
 
-fn get_path<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<dyn Future<Item=Path<'static>, Error=dbus::Error>>
+async fn get_path<P>(dbus_conn: &SyncConnection, object_path: P, interface: &str, property: &str) -> Result<Path<'static>, dbus::Error>
     where P: Into<Path<'static>> {
-    let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
-    let method_call = aconn.method_call(m).unwrap()
-        .map(|m| {
-            let res : Variant<Path<'static>> = m.get1().expect("failed to parse path");
-            res.0
-        });
-    return Box::new(method_call);
+    let proxy = Proxy::new("org.freedesktop.NetworkManager", object_path, TIMEOUT, dbus_conn);
+    let (res,) : (Variant<Path<'static>>,) = proxy.method_call("org.freedesktop.DBus.Properties", "Get", (interface, property)).await?;
+    return Ok(res.0)
 }
 
-fn get_dict<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<dyn Future<Item=HashMap<String,Variant<String>>, Error=dbus::Error>>
+async fn get_dict<P>(dbus_conn: &SyncConnection, object_path: P, interface: &str, property: &str) -> Result<HashMap<String, Variant<String>>, dbus::Error>
     where P: Into<Path<'static>> {
-    let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
-    let method_call = aconn.method_call(m).unwrap()
-        .map(|m| {
-            let res : Variant<HashMap<String,Variant<String>>> = m.get1().expect("failed to parse dict");
-            res.0
-        });
-    return Box::new(method_call);
+    let proxy = Proxy::new("org.freedesktop.NetworkManager", object_path, TIMEOUT, dbus_conn);
+    let (res,) : (Variant<HashMap<String, Variant<String>>>,) = proxy.method_call("org.freedesktop.DBus.Properties", "Get", (interface, property)).await?;
+    return Ok(res.0)
 }
 
-fn get_list_of_strings<P>(aconn: &AConnection, object_path: P, interface: &str, property: &str) -> Box<dyn Future<Item=Vec<String>, Error=dbus::Error>>
+async fn get_list_of_strings<P>(dbus_conn: &SyncConnection, object_path: P, interface: &str, property: &str) -> Result<Vec<String>, dbus::Error>
     where P: Into<Path<'static>> {
-    let m = Message::new_method_call("org.freedesktop.NetworkManager", object_path, "org.freedesktop.DBus.Properties", "Get").unwrap().append2(interface, property);
-    let method_call = aconn.method_call(m).unwrap()
-        .map(|m| {
-            let res : Variant<Vec<String>> = m.get1().expect("failed to parse list of strings");
-            res.0
-        });
-    return Box::new(method_call);
-}
-
-enum State {
-    Start,
-    ReceiveActiveConnections {
-        paths_future: Box<dyn Future<Item=Vec<Path<'static>>,Error=dbus::Error>>,
-    },
-    LoopConnections,
-    ReceiveDhcp4Config {
-        dhcp4_config_future: Box<dyn Future<Item=Path<'static>,Error=dbus::Error>>,
-    },
-    ReceiveDhcp4Options {
-        dhcp4_options_future: Box<dyn Future<Item=HashMap<String,Variant<String>>,Error=dbus::Error>>
-    },
-    ReceiveIP4Config {
-        ip4_config_future: Box<dyn Future<Item=Path<'static>,Error=dbus::Error>>,
-    },
-    ReceiveDomain {
-        domain_future: Box<dyn Future<Item=Vec<String>,Error=dbus::Error>>,
-    },
-    NextConnection,
-    Done,
+    let proxy = Proxy::new("org.freedesktop.NetworkManager", object_path, TIMEOUT, dbus_conn);
+    let (res,) : (Variant<Vec<String>>,) = proxy.method_call("org.freedesktop.DBus.Properties", "Get", (interface, property)).await?;
+    return Ok(res.0)
 }
 
 #[derive(Clone,Debug)]
@@ -86,149 +48,89 @@ struct WPADInfo {
     domains: Vec<String>,
 }
 
-struct WPADDiscoverer {
-    aconn: AConnection,
-    active_connections: Vec<Path<'static>>,
-    ix: usize,
-    state: State,
-    wpad_info: WPADInfo,
+async fn wpaddiscoverer(conn : &SyncConnection) -> Result<WPADInfo, dbus::Error> {
+    debug!("Finding active connections");
+    let active_connections = get_list_of_paths(&conn, "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "ActiveConnections").await?;
+
+    debug!("received active connections: {:?}", active_connections);
+
+    let mut wpad_info = WPADInfo {
+        wpad_option: None,
+        domains: Vec::new(),
+    };
+
+    for active_connection in active_connections {
+        let config_path = get_path(&conn, active_connection.clone(), "org.freedesktop.NetworkManager.Connection.Active", "Dhcp4Config").await?;
+
+        debug!("received config path: {:?}", config_path);
+        let options = get_dict(&conn, config_path.clone(), "org.freedesktop.NetworkManager.DHCP4Config", "Options").await?;
+
+        debug!("received dhcp4 options: {:?}", options);
+        wpad_info.wpad_option = match options.get(&String::from("wpad")) {
+            None => None,
+            Some(s) => Some(s.0.clone()),
+        };
+        let config_path = get_path(&conn, active_connection.clone(), "org.freedesktop.NetworkManager.Connection.Active", "Ip4Config").await?;
+
+        debug!("received config path: {:?}", config_path);
+        let domains = get_list_of_strings(&conn, config_path.clone(), "org.freedesktop.NetworkManager.IP4Config", "Domains").await?;
+
+        debug!("received domains: {:?}", domains);
+        wpad_info.domains.extend(domains);
+    }
+
+    return Ok(wpad_info)
 }
 
-impl WPADDiscoverer {
-    fn new(handle: &Handle) -> Self {
-        let c = Rc::new(Connection::get_private(BusType::System).unwrap());
-        let aconn = AConnection::new(c.clone(), handle.clone()).unwrap();
-        Self {
-            aconn,
-            active_connections: Vec::new(),
-            ix: 0,
-            state: State::Start,
-            wpad_info: WPADInfo {
-                wpad_option: None,
-                domains: Vec::new(),
-            }
+
+pub async fn get_wpad_urls() -> Result<Vec<String>, ()> {
+    // TODO: cache me
+    let (resource, dbus_conn) = connection::new_system_sync().unwrap();
+    tokio::spawn(async {
+        let err = resource.await;
+        panic!("Lost connection to D-Bus: {}", err);
+    });
+
+    match wpaddiscoverer(&dbus_conn).await {
+        Err(dbus_err) => {
+            warn!("dbus error: {:?}", dbus_err);
+            Err(())
+        },
+        Ok(info) => {
+            info!("Found network information: {:?}", info);
+            let url_strings = match info.wpad_option {
+                None => info.domains.iter().map(|d| {
+                    format!("http://wpad.{}/wpad.dat", d)
+                }).collect(),
+                Some(url) => [url].to_vec(),
+            };
+            Ok(url_strings)
         }
     }
 }
 
-impl Future for WPADDiscoverer {
-    type Item = WPADInfo;
-    type Error = dbus::Error;
-     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-         loop {
-             self.state = match self.state {
-                 State::Start => {
-                     debug!("Finding active connections");
-                     let paths_future = get_list_of_paths(&self.aconn, "/org/freedesktop/NetworkManager", "org.freedesktop.NetworkManager", "ActiveConnections");
-                     State::ReceiveActiveConnections { paths_future }
-                 }
-                 State::ReceiveActiveConnections { ref mut paths_future } => {
-                     let active_connections = try_ready!(paths_future.poll());
-                     debug!("received active connections: {:?}", active_connections);
-                     self.active_connections.extend(active_connections);
-                     State::LoopConnections
-                 }
-                 State::LoopConnections => {
-                     if self.ix < self.active_connections.len() {
-                         let dhcp4_config_future = get_path(&self.aconn, self.active_connections[self.ix].clone(), "org.freedesktop.NetworkManager.Connection.Active", "Dhcp4Config");
-                         State::ReceiveDhcp4Config { dhcp4_config_future }
-                     } else {
-                         State::Done
-                     }
-                 }
-                 State::ReceiveDhcp4Config { ref mut dhcp4_config_future } => {
-                     let config_path = try_ready!(dhcp4_config_future.poll());
-                     debug!("received config path: {:?}", config_path);
-                     let dhcp4_options_future = get_dict(&self.aconn, config_path.clone(), "org.freedesktop.NetworkManager.DHCP4Config", "Options");
-                     State::ReceiveDhcp4Options { dhcp4_options_future }
-                 }
-                 State::ReceiveDhcp4Options { ref mut dhcp4_options_future } => {
-                     let options = try_ready!(dhcp4_options_future.poll());
-                     debug!("received dhcp4 options: {:?}", options);
-                     self.wpad_info.wpad_option = match options.get(&String::from("wpad")) {
-                         None => None,
-                         Some(s) => Some(s.0.clone()),
-                     };
-                     let ip4_config_future = get_path(&self.aconn, self.active_connections[self.ix].clone(), "org.freedesktop.NetworkManager.Connection.Active", "Ip4Config");
-                     State::ReceiveIP4Config { ip4_config_future }
-                 }
-                 State::ReceiveIP4Config { ref mut ip4_config_future } => {
-                     debug!("polling ip4 config");
-                     let config_path = try_ready!(ip4_config_future.poll());
-                     debug!("received config path: {:?}", config_path);
-                     let domain_future = get_list_of_strings(&self.aconn, config_path.clone(), "org.freedesktop.NetworkManager.IP4Config", "Domains");
-                     State::ReceiveDomain { domain_future }
-                 }
-                 State::ReceiveDomain { ref mut domain_future } => {
-                     let domains = try_ready!(domain_future.poll());
-                     debug!("received domains: {:?}", domains);
-                     self.wpad_info.domains.extend(domains);
-                     State::NextConnection
-                 }
-                 State::NextConnection => {
-                     self.ix += 1;
-                     State::LoopConnections
-                 }
-                 State::Done => return Ok(Async::Ready(self.wpad_info.clone())),
-             };
-         }
-     }
- }
+pub async fn retrieve_first_working_url(urls: Vec<String>) -> Result<Option<String>,()> {
 
-pub fn get_wpad_urls(handle: &Handle) -> Box<dyn Future<Item=Vec<String>,Error=()>> {
-
-    let task = WPADDiscoverer::new(handle)
-    .map_err(|dbus_err| {
-        warn!("dbus error: {:?}", dbus_err)
-    })
-    .map(|info| {
-        info!("Found network information: {:?}", info);
-        let url_strings = match info.wpad_option {
-            None => info.domains.iter().map(|d| {
-                format!("http://wpad.{}/wpad.dat", d)
-            }).collect(),
-            Some(url) => [url].to_vec(),
-        };
-        url_strings
-    });
-    return Box::new(task);
-}
-
-pub fn retrieve_first_working_url(handle: &Handle, url_strings: Vec<String>) -> Box<dyn Future<Item=Option<String>,Error=()>> {
-
-    let http_client = Client::new(handle);
-
-    let urls :Vec<hyper::Uri> = url_strings.iter().filter_map(|url| url.parse::<hyper::Uri>().ok()).collect();
-    debug!("Urls: {:?}", urls);
-
-    let n = urls.len();
-    let task = loop_fn(0, move |ix| {
-        if ix < n {
-            let get_wpad = http_client.get(urls[ix].clone())
-            .and_then(move |res| {
-                if res.status() != StatusCode::Ok {
-                    Either::A(future::ok(Loop::Continue(ix+1)))
+    for url in urls {
+        match reqwest::get(&url).await {
+            Ok(res) => {
+                if res.status() != StatusCode::OK {
+                    // continue
                 } else {
-                    Either::B(res.body().concat2().map(|body| {
-                        let wpad_script = String::from_utf8(body.to_vec()).expect("wpad script not valid utf8");
-                        trace!("wpad script: {}", wpad_script);
-                        Loop::Break(Some(wpad_script))
-                    }))
+                    let wpad_script = res.text().await.unwrap();
+                    trace!("wpad script: {}", wpad_script);
+                    return Ok(Some(wpad_script))
                 }
-            })
-            .or_else(move |err| {
+            },
+            Err(err) => {
                 // this error is expected, as we're just sending requests
                 // to random wpad.<domain> hosts that don't even exist
                 // in most networks
                 info!("No wpad configuration found: {:?}", err);
-                future::ok(Loop::Continue(ix+1))
-            });
-            Either::A(get_wpad)
-        } else {
-            Either::B(future::ok(Loop::Break(None)))
+            }
         }
-    });
-    return Box::new(task);
+    }
+    return Ok(None)
 }
 
 #[derive(Debug,Clone)]

@@ -2,18 +2,18 @@
 name = "pac4cli"
 version = "0.1.0"
 authors = ["Timo Kluck <tkluck@infty.nl>"]
+edition = '2018'
 
 [dependencies]
-tokio = "0.1"
-tokio-io = "0.1"
-tokio-core = "0.1"
+tokio = {"version"= "0.2", features=["macros", "io-util"]}
 libc = "0.2.0"
 argparse = "0.2.1"
 futures = "0.1.17"
 uri = "0.3.0"
-dbus = "0.6.1"
-dbus-tokio = "0.2.1"
-hyper = "0.11"
+dbus = "0.8"
+dbus-tokio = "0.5"
+hyper = "0.13"
+reqwest = "0.10"
 slog = "2.2.3"
 slog-scope = "4.0.1"
 slog-term = "2.3.0"
