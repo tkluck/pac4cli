@@ -76,7 +76,7 @@ async fn process_socket<F>(mut downstream_connection: TcpStream, find_proxy: Arc
                 let uri =  match Uri::new(&incoming_result.preamble.uri) {
                     Ok(uri) => uri,
                     Err(_) => {
-                        send_error(&mut downstream_connection);
+                        send_error(&mut downstream_connection).await;
                         return Ok(());
                     },
                 };
@@ -100,7 +100,7 @@ async fn process_socket<F>(mut downstream_connection: TcpStream, find_proxy: Arc
         (host, port) => match (host.as_str(), port).to_socket_addrs() {
             Ok(mut iter) => iter.next().expect("Parsed address successfully, but no result??"),
             Err(_) => {
-                send_error(&mut downstream_connection);
+                send_error(&mut downstream_connection).await;
                 return Ok(());
             },
         }
