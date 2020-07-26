@@ -12,7 +12,6 @@ use slog::Drain;
 use slog_journald::JournaldDrain;
 use tokio_signal::unix::{Signal, SIGHUP};
 
-mod ringbuffer;
 mod pacparser;
 mod proxy;
 mod wpad;
