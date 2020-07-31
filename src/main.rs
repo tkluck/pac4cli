@@ -104,7 +104,10 @@ async fn main() {
                 debug!("accepted socket; addr={:?}", downstream_connection.peer_addr().unwrap());
                 let find_proxy_clone = find_proxy_arc.clone();
                 tokio::spawn(async move {
-                    proxy::process_socket(downstream_connection, find_proxy_clone).await;
+                    let res = proxy::process_socket(downstream_connection, find_proxy_clone).await;
+                    if let Err(err) = res {
+                        warn!("Issue while handling connection: {:?}", err);
+                    }
                 });
             }
         }
