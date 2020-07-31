@@ -6,14 +6,15 @@ extern crate slog;
 #[macro_use]
 extern crate slog_scope;
 
-use argparse::{ArgumentParser, StoreTrue, Store, StoreOption};
 use ini::Ini;
 use slog::Drain;
 use slog_journald::JournaldDrain;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::net::TcpListener;
+use structopt::StructOpt;
 
 mod pacparser;
+mod options;
 mod proxy;
 mod wpad;
 mod systemd;
@@ -21,72 +22,29 @@ mod systemd;
 use pacparser::{ProxySuggestion,find_proxy_suggestions};
 use wpad::AutoConfigHandler;
 
-#[derive(Clone)]
-struct Options {
-    config: Option<String>,
-    port: u16,
-    force_proxy: Option<ProxySuggestion>,
-    force_wpad_url: Option<String>,
-    loglevel: slog::FilterLevel,
-    systemd: bool,
-}
-
 #[tokio::main]
 async fn main() {
 
-    let options = {
-        let mut options = Options {
-            config:      None,
-            port:        3128,
-            force_proxy: None,
-            force_wpad_url: None,
-            loglevel:    slog::FilterLevel::Debug,
-            systemd:     false,
-        };
-        {
-            let mut ap = ArgumentParser::new();
-            ap.set_description("
-            Run a simple HTTP proxy on localhost that uses a wpad.dat to decide
-            how to connect to the actual server.
-            ");
-            ap.refer(&mut options.config)
-                .add_option(&["-c", "--config"], StoreOption,
-                "Path to configuration file");
-            ap.refer(&mut options.port)
-                .metavar("PORT")
-                .add_option(&["-p","--port"], Store,
-                "Port to listen on");
-            ap.refer(&mut options.force_proxy)
-                .metavar("PROXY STRING")
-                .add_option(&["-F", "--force-proxy"], StoreOption,
-                "Forward traffic according to PROXY STRING, e.g. DIRECT or PROXY <proxy>");
-            ap.refer(&mut options.loglevel)
-                .metavar("LEVEL")
-                .add_option(&["--loglevel"], Store,
-                "One of DEBUG/INFO/WARNING/ERROR");
-            ap.refer(&mut options.systemd)
-                .add_option(&["--systemd"], StoreTrue,
-                "Assume running under systemd (log to journald)");
-            ap.parse_args_or_exit();
-        }
+    let options = options::Options::from_args();
 
-        options.force_wpad_url = if let Some(file) = options.config.clone() {
-            info!("Loading configuration file {}", file);
-            let conf = Ini::load_from_file(file).expect("Failed to load config file");
-            if let Some(section) = conf.section(Some("wpad".to_owned())) {
-                if let Some(url) = section.get("url") {
-                    Some(url.clone())
-                } else {
-                    None
-                }
+    /*
+    let force_wpad_url = if let Some(file) = options.config.clone() {
+        info!("Loading configuration file {}", file);
+        let conf = Ini::load_from_file(file).expect("Failed to load config file");
+        if let Some(section) = conf.section(Some("wpad".to_owned())) {
+            if let Some(url) = section.get("url") {
+                Some(url.clone())
             } else {
                 None
             }
         } else {
             None
-        };
-        options.clone()
+        }
+    } else {
+        None
     };
+    */
+
     // set up logging
     // Need to keep _guard alive for as long as we want to log
     let _guard = match options.systemd {
@@ -157,7 +115,7 @@ async fn main() {
     info!("Clean exit");
 }
 
-async fn update_configuration_from_wpad(options: &Options, auto_config_handler: Arc<AutoConfigHandler>) {
+async fn update_configuration_from_wpad(options: &options::Options, auto_config_handler: Arc<AutoConfigHandler>) {
     if options.force_proxy.is_none() {
         let urls = match options.force_wpad_url {
             Some(ref url) => [url.clone()].to_vec(),

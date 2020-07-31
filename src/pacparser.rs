@@ -35,7 +35,7 @@ fn find_proxy(url: &str, host: &str) -> String {
     return String::from( cres.to_str().unwrap() );
 }
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum ProxySuggestion {
     Direct,
     Proxy {
