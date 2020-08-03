@@ -84,7 +84,7 @@ pub async fn sniff_incoming_connection(io: &mut net::TcpStream) -> io::Result<In
     });
 }
 
-pub async fn two_way_pipe(t: &mut net::TcpStream, s: &mut net::TcpStream) -> io::Result<()> {
+pub async fn communicate(t: &mut net::TcpStream, s: &mut net::TcpStream) -> io::Result<()> {
     let (mut tr, mut tw) = t.split();
     let (mut sr, mut sw) = s.split();
 

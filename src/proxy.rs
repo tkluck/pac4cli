@@ -4,10 +4,9 @@ use tokio;
 use tokio::io;
 use tokio::net;
 use tokio::prelude::*;
-
 use uri;
 
-use crate::connection::two_way_pipe;
+use crate::connection;
 use crate::wpad;
 use crate::wpad::ProxySuggestion;
 
@@ -111,7 +110,7 @@ where
         trace!("Written my response to downstream");
     }
     trace!("Starting two-way pipe");
-    two_way_pipe(&mut upstream_connection, &mut downstream_connection).await?;
+    connection::communicate(&mut upstream_connection, &mut downstream_connection).await?;
     debug!("Successfully served request");
     return Ok(());
 }
