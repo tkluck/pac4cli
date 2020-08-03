@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Mutex,Arc};
+use std::sync::RwLock;
 use std::time::Duration;
 
 use dbus;
@@ -10,7 +10,10 @@ use dbus_tokio::connection;
 use reqwest;
 use reqwest::StatusCode;
 
+use crate::options;
 use crate::pacparser;
+use crate::wpad;
+use pacparser::ProxySuggestion;
 
 const TIMEOUT : Duration = Duration::from_secs(2);
 
@@ -134,42 +137,73 @@ pub async fn retrieve_first_working_url(urls: Vec<String>) -> Result<Option<Stri
 }
 
 #[derive(Debug,Clone)]
-pub enum AutoConfigState {
-    Discovering,
-    Direct,
-    PAC,
+pub enum ProxyResolutionBehavior {
+    Static(ProxySuggestion),
+    WPAD(String),
 }
 
-pub struct AutoConfigHandler {
-    state: Arc<Mutex<AutoConfigState>>,
+#[derive(Debug)]
+pub struct ProxyResolver {
+    flags: options::CmdLineOptions,
+    behavior: RwLock<ProxyResolutionBehavior>,
 }
 
-impl AutoConfigHandler {
-    pub fn new() -> Self {
-        AutoConfigHandler {
-            state: Arc::new(Mutex::new(AutoConfigState::Discovering)),
+impl ProxyResolver {
+    pub async fn load(flags: options::CmdLineOptions) -> Self {
+        let configured_behavior = Self::reload_behavior(&flags).await;
+        let behavior = if let ProxyResolutionBehavior::WPAD(script) = configured_behavior {
+            match pacparser::parse_pac_string(&script) {
+                Ok(..) => ProxyResolutionBehavior::WPAD(script),
+                Err(..) => ProxyResolutionBehavior::Static(ProxySuggestion::Direct),
+            }
+        } else {
+            configured_behavior
+        };
+        Self {
+            flags: flags,
+            behavior: RwLock::new(behavior),
         }
     }
 
-    pub fn get_state_ref(&self) -> Arc<Mutex<AutoConfigState>> {
-        self.state.clone()
-    }
-
-    pub fn set_current_wpad_script(&self, wpad: Option<String>) {
-        let auto_config_state = self.get_state_ref();
-        Self::set_current_wpad_script_internal(auto_config_state, wpad);
-    }
-
-    fn set_current_wpad_script_internal(auto_config_state: Arc<Mutex<AutoConfigState>>, wpad: Option<String>) {
-        let mut state = auto_config_state.lock().expect("issue locking state");
-        *state = if let Some(ref script) = wpad {
-            match pacparser::parse_pac_string(script) {
-                Ok(..) => AutoConfigState::PAC,
-                Err(..) => AutoConfigState::Direct,
+    pub async fn reload(&self) {
+        let configured_behavior = Self::reload_behavior(&self.flags).await;
+        let mut behavior = self.behavior.write().unwrap();
+        *behavior = if let ProxyResolutionBehavior::WPAD(script) = configured_behavior {
+            match pacparser::parse_pac_string(&script) {
+                Ok(..) => ProxyResolutionBehavior::WPAD(script),
+                Err(..) => ProxyResolutionBehavior::Static(ProxySuggestion::Direct),
             }
         } else {
-            AutoConfigState::Direct
-        };
-        info!("AutoConfigState is now {:?}", *state)
+            configured_behavior
+        }
     }
+
+    async fn reload_behavior(flags: &options::CmdLineOptions) -> ProxyResolutionBehavior {
+        let options = options::Options::load(&flags);
+        match options.force_proxy {
+            Some(proxy_suggestion) => ProxyResolutionBehavior::Static(proxy_suggestion),
+            None => {
+                let urls = match options.wpad_url {
+                    Some(ref url) => [url.clone()].to_vec(),
+                    None => wpad::get_wpad_urls().await.unwrap(),
+                };
+                let maybe_wpad_script = wpad::retrieve_first_working_url(urls).await.unwrap();
+                match maybe_wpad_script {
+                    None => ProxyResolutionBehavior::Static(ProxySuggestion::Direct),
+                    Some(wpad_script) => ProxyResolutionBehavior::WPAD(wpad_script),
+                }
+            }
+        }
+    }
+
+    pub fn find_proxy(&self, url: &str, host: &str) -> ProxySuggestion {
+        // Take the write() lock because I'm not sure pacparser is thread-safe
+        let behavior = self.behavior.write().unwrap();
+        match &*behavior {
+            ProxyResolutionBehavior::Static(proxy_suggestion) => proxy_suggestion.clone(),
+            // TODO: try all instead of just the first
+            ProxyResolutionBehavior::WPAD(_) => pacparser::find_proxy_suggestions(url, host).remove(0),
+        }
+    }
+
 }

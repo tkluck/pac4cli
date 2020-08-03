@@ -1,5 +1,4 @@
 use std::net::ToSocketAddrs;
-use std::sync::Arc;
 
 use tokio;
 use tokio::io;
@@ -14,6 +13,7 @@ mod protocol;
 use self::connection::two_way_pipe;
 use self::protocol::Preamble;
 use crate::pacparser::ProxySuggestion;
+use crate::wpad::ProxyResolver;
 
 async fn send_error(conn: &mut TcpStream) -> io::Result<()> {
     conn.write_all(b"<h1>Could not connect</h1>").await?;
@@ -21,8 +21,7 @@ async fn send_error(conn: &mut TcpStream) -> io::Result<()> {
     Ok(())
 }
 
-pub async fn process_socket<F>(mut downstream_connection: TcpStream, find_proxy: Arc<F>) -> io::Result<()>
-    where F: 'static+Send+Sync+Fn(&str, &str) -> ProxySuggestion
+pub async fn process_socket(mut downstream_connection: TcpStream, proxy_resolver: &ProxyResolver) -> io::Result<()>
 {
 
     let incoming_result = connection::sniff_incoming_connection(&mut downstream_connection).await?;
@@ -48,7 +47,7 @@ pub async fn process_socket<F>(mut downstream_connection: TcpStream, find_proxy:
     let buffered_for_upstream : Vec<u8>;
     let my_response_for_downstream : Option<&'static [u8]>;
 
-    match find_proxy(url, host) {
+    match proxy_resolver.find_proxy(url, host) {
         ProxySuggestion::Direct => {
             if incoming_result.preamble.method == "CONNECT" {
                 preamble_for_upstream = None;
