@@ -2,29 +2,27 @@ use std::net::ToSocketAddrs;
 
 use tokio;
 use tokio::io;
-use tokio::net::TcpStream;
+use tokio::net;
 use tokio::prelude::*;
 
-use uri::Uri;
+use uri;
 
 mod connection;
 mod protocol;
 
 use self::connection::two_way_pipe;
-use self::protocol::Preamble;
 use crate::pacparser::ProxySuggestion;
 use crate::wpad;
-use crate::wpad::ProxyResolver;
 
-async fn send_error(conn: &mut TcpStream) -> io::Result<()> {
+async fn send_error(conn: &mut net::TcpStream) -> io::Result<()> {
     conn.write_all(b"<h1>Could not connect</h1>").await?;
     // TODO(tkluck): close it; conn.close();
     Ok(())
 }
 
 pub async fn process_socket<T>(
-    mut downstream_connection: TcpStream,
-    proxy_resolver: &ProxyResolver<T>,
+    mut downstream_connection: net::TcpStream,
+    proxy_resolver: &wpad::ProxyResolver<T>,
 ) -> io::Result<()>
 where
     T: wpad::NetworkEnvironment,
@@ -42,7 +40,7 @@ where
             .expect("Invalid port in connect spec");
         (host.clone(), host, port)
     } else {
-        let uri = Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
+        let uri = uri::Uri::new(&incoming_result.preamble.uri).expect("Can't parse incoming uri");
         let host = uri.host.expect("No host in URI; aborting");
         let default_port: u16 = if uri.scheme == "https" { 443 } else { 80 };
         let port = uri.port.unwrap_or(default_port);
@@ -51,7 +49,7 @@ where
     debug!("Destination is {}:{}", host, port);
 
     let upstream_address: (String, u16);
-    let preamble_for_upstream: Option<Preamble>;
+    let preamble_for_upstream: Option<protocol::Preamble>;
     let buffered_for_upstream: Vec<u8>;
     let my_response_for_downstream: Option<&'static [u8]>;
 
@@ -61,7 +59,7 @@ where
                 preamble_for_upstream = None;
                 my_response_for_downstream = Some(b"HTTP/1.1 200 OK\r\n\r\n");
             } else {
-                let uri = match Uri::new(&incoming_result.preamble.uri) {
+                let uri = match uri::Uri::new(&incoming_result.preamble.uri) {
                     Ok(uri) => uri,
                     Err(_) => {
                         send_error(&mut downstream_connection).await;
@@ -101,7 +99,7 @@ where
     };
     debug!("Upstream resolved to: {:?}", upstream_socket_addr);
 
-    let mut upstream_connection = TcpStream::connect(&upstream_socket_addr).await?;
+    let mut upstream_connection = net::TcpStream::connect(&upstream_socket_addr).await?;
     debug!("Connected to upstream");
 
     if let Some(preamble) = preamble_for_upstream {

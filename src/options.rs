@@ -1,6 +1,6 @@
 use ini::Ini;
 use slog::FilterLevel;
-use std::path::PathBuf;
+use std::path;
 use std::str::FromStr;
 use structopt::StructOpt;
 
@@ -13,7 +13,7 @@ use crate::pacparser::ProxySuggestion;
 pub struct CmdLineOptions {
     /// Path to configuration file
     #[structopt(short, long)]
-    pub config: Option<PathBuf>,
+    pub config: Option<path::PathBuf>,
 
     /// Port to listen on
     #[structopt(short, long)]

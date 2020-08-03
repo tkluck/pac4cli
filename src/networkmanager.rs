@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync;
-use std::time::Duration;
+use std::time;
 
 use async_trait::async_trait;
 use dbus;
@@ -96,7 +96,7 @@ impl wpad::NetworkEnvironment for NetworkManager {
     }
 }
 
-const TIMEOUT: Duration = Duration::from_secs(2);
+const TIMEOUT: time::Duration = time::Duration::from_secs(2);
 
 async fn get_list_of_paths<P>(
     dbus_conn: &SyncConnection,

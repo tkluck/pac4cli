@@ -1,5 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::sync::Arc;
+use std::sync;
 
 #[macro_use]
 extern crate slog;
@@ -10,8 +10,8 @@ use slog::Drain;
 use slog_journald::JournaldDrain;
 use structopt::StructOpt;
 use systemd::daemon;
-use tokio::net::TcpListener;
-use tokio::signal::unix::{signal, SignalKind};
+use tokio::net;
+use tokio::signal::unix;
 
 mod networkmanager;
 mod options;
@@ -45,15 +45,15 @@ async fn main() {
     let network_env = networkmanager::NetworkManager::new();
 
     let proxy_resolver = wpad::ProxyResolver::load(network_env, flags.clone()).await;
-    let proxy_resolver_ref = Arc::new(proxy_resolver);
+    let proxy_resolver_ref = sync::Arc::new(proxy_resolver);
 
-    let mut sighups = signal(SignalKind::hangup()).unwrap();
-    let mut sigints = signal(SignalKind::interrupt()).unwrap();
+    let mut sighups = unix::signal(unix::SignalKind::hangup()).unwrap();
+    let mut sigints = unix::signal(unix::SignalKind::interrupt()).unwrap();
 
     // scope for listener
     {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), options.port);
-        let mut listener = TcpListener::bind(&addr).await.unwrap();
+        let mut listener = net::TcpListener::bind(&addr).await.unwrap();
 
         daemon::notify(false, [(daemon::STATE_READY, "1")].iter());
 

@@ -1,12 +1,12 @@
 use tokio::io;
-use tokio::net::TcpStream;
+use tokio::net;
 use tokio::prelude::*;
 
-use crate::proxy::protocol::Preamble;
+use crate::proxy::protocol;
 
 #[derive(Debug)]
 pub struct IncomingResult {
-    pub preamble: Preamble,
+    pub preamble: protocol::Preamble,
     pub buffered: Vec<u8>,
 }
 
@@ -24,7 +24,7 @@ fn findslice(needle: &[u8], haystack: &[u8]) -> Option<usize> {
     return None;
 }
 
-pub async fn sniff_incoming_connection(io: &mut TcpStream) -> io::Result<IncomingResult> {
+pub async fn sniff_incoming_connection(io: &mut net::TcpStream) -> io::Result<IncomingResult> {
     let mut position = 0;
     let preamble_end: usize;
     let mut buffer = vec![0; 1024];
@@ -48,7 +48,7 @@ pub async fn sniff_incoming_connection(io: &mut TcpStream) -> io::Result<Incomin
     let http_version = String::from(items.next().unwrap());
 
     return Ok(IncomingResult {
-        preamble: Preamble {
+        preamble: protocol::Preamble {
             method,
             uri,
             http_version,
@@ -58,7 +58,7 @@ pub async fn sniff_incoming_connection(io: &mut TcpStream) -> io::Result<Incomin
     });
 }
 
-pub async fn two_way_pipe(t: &mut TcpStream, s: &mut TcpStream) -> io::Result<()> {
+pub async fn two_way_pipe(t: &mut net::TcpStream, s: &mut net::TcpStream) -> io::Result<()> {
     let (mut tr, mut tw) = t.split();
     let (mut sr, mut sw) = s.split();
 

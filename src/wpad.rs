@@ -1,8 +1,7 @@
-use std::sync::RwLock;
+use std::sync;
 
 use async_trait::async_trait;
 use reqwest;
-use reqwest::StatusCode;
 
 use crate::options;
 use crate::pacparser;
@@ -29,7 +28,7 @@ pub enum ProxyResolutionBehavior {
 #[derive(Debug)]
 pub struct ProxyResolver<T: NetworkEnvironment> {
     flags: options::CmdLineOptions,
-    behavior: RwLock<ProxyResolutionBehavior>,
+    behavior: sync::RwLock<ProxyResolutionBehavior>,
     network_env: T,
 }
 
@@ -47,7 +46,7 @@ impl<T: NetworkEnvironment> ProxyResolver<T> {
         Self {
             network_env,
             flags,
-            behavior: RwLock::new(behavior),
+            behavior: sync::RwLock::new(behavior),
         }
     }
 
@@ -123,7 +122,7 @@ async fn retrieve_first_working_url(urls: Vec<String>) -> Result<Option<String>,
     for url in urls {
         match reqwest::get(&url).await {
             Ok(res) => {
-                if res.status() != StatusCode::OK {
+                if res.status() != reqwest::StatusCode::OK {
                     // continue
                 } else {
                     let wpad_script = res.text().await.unwrap();
