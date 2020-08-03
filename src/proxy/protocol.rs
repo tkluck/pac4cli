@@ -1,7 +1,7 @@
 use tokio::io;
 use tokio::prelude::*;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Preamble {
     pub method: String,
     pub uri: String,
@@ -10,7 +10,10 @@ pub struct Preamble {
 }
 
 impl Preamble {
-    pub async fn write<IO: std::marker::Unpin + io::AsyncWrite>(self, io: &mut IO) -> io::Result<()> {
+    pub async fn write<IO: std::marker::Unpin + io::AsyncWrite>(
+        self,
+        io: &mut IO,
+    ) -> io::Result<()> {
         io.write_all(self.method.as_bytes()).await?;
         io.write_all(b" ").await?;
         io.write_all(self.uri.as_bytes()).await?;

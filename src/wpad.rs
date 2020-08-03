@@ -9,8 +9,7 @@ use crate::pacparser;
 use crate::wpad;
 use pacparser::ProxySuggestion;
 
-
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct WPADInfo {
     pub wpad_option: Option<String>,
     pub domains: Vec<String>,
@@ -21,7 +20,7 @@ pub trait NetworkEnvironment {
     async fn get_wpad_info(&self) -> Result<WPADInfo, ()>;
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum ProxyResolutionBehavior {
     Static(ProxySuggestion),
     WPAD(String),
@@ -35,7 +34,6 @@ pub struct ProxyResolver<T: NetworkEnvironment> {
 }
 
 impl<T: NetworkEnvironment> ProxyResolver<T> {
-
     pub async fn load(network_env: T, flags: options::CmdLineOptions) -> Self {
         let configured_behavior = Self::reload_behavior(&network_env, &flags).await;
         let behavior = if let ProxyResolutionBehavior::WPAD(script) = configured_behavior {
@@ -47,7 +45,8 @@ impl<T: NetworkEnvironment> ProxyResolver<T> {
             configured_behavior
         };
         Self {
-            network_env, flags,
+            network_env,
+            flags,
             behavior: RwLock::new(behavior),
         }
     }
@@ -71,11 +70,16 @@ impl<T: NetworkEnvironment> ProxyResolver<T> {
         match &*behavior {
             ProxyResolutionBehavior::Static(proxy_suggestion) => proxy_suggestion.clone(),
             // TODO: try all instead of just the first
-            ProxyResolutionBehavior::WPAD(_) => pacparser::find_proxy_suggestions(url, host).remove(0),
+            ProxyResolutionBehavior::WPAD(_) => {
+                pacparser::find_proxy_suggestions(url, host).remove(0)
+            }
         }
     }
 
-    async fn reload_behavior(network_env: &T, flags: &options::CmdLineOptions) -> ProxyResolutionBehavior {
+    async fn reload_behavior(
+        network_env: &T,
+        flags: &options::CmdLineOptions,
+    ) -> ProxyResolutionBehavior {
         let options = options::Options::load(&flags);
         match options.force_proxy {
             Some(proxy_suggestion) => ProxyResolutionBehavior::Static(proxy_suggestion),
@@ -98,13 +102,15 @@ impl<T: NetworkEnvironment> ProxyResolver<T> {
             Err(dbus_err) => {
                 warn!("dbus error: {:?}", dbus_err);
                 Err(())
-            },
+            }
             Ok(info) => {
                 info!("Found network information: {:?}", info);
                 let url_strings = match info.wpad_option {
-                    None => info.domains.iter().map(|d| {
-                        format!("http://wpad.{}/wpad.dat", d)
-                    }).collect(),
+                    None => info
+                        .domains
+                        .iter()
+                        .map(|d| format!("http://wpad.{}/wpad.dat", d))
+                        .collect(),
                     Some(url) => [url].to_vec(),
                 };
                 Ok(url_strings)
@@ -113,8 +119,7 @@ impl<T: NetworkEnvironment> ProxyResolver<T> {
     }
 }
 
-async fn retrieve_first_working_url(urls: Vec<String>) -> Result<Option<String>,()> {
-
+async fn retrieve_first_working_url(urls: Vec<String>) -> Result<Option<String>, ()> {
     for url in urls {
         match reqwest::get(&url).await {
             Ok(res) => {
@@ -123,9 +128,9 @@ async fn retrieve_first_working_url(urls: Vec<String>) -> Result<Option<String>,
                 } else {
                     let wpad_script = res.text().await.unwrap();
                     trace!("wpad script: {}", wpad_script);
-                    return Ok(Some(wpad_script))
+                    return Ok(Some(wpad_script));
                 }
-            },
+            }
             Err(err) => {
                 // this error is expected, as we're just sending requests
                 // to random wpad.<domain> hosts that don't even exist
@@ -134,6 +139,5 @@ async fn retrieve_first_working_url(urls: Vec<String>) -> Result<Option<String>,
             }
         }
     }
-    return Ok(None)
+    return Ok(None);
 }
-

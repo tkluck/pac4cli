@@ -16,7 +16,7 @@ fn findslice(needle: &[u8], haystack: &[u8]) -> Option<usize> {
     if n > k {
         return None;
     }
-    for (ix,window) in haystack.windows(n).enumerate() {
+    for (ix, window) in haystack.windows(n).enumerate() {
         if window == needle {
             return Some(ix);
         }
@@ -26,7 +26,7 @@ fn findslice(needle: &[u8], haystack: &[u8]) -> Option<usize> {
 
 pub async fn sniff_incoming_connection(io: &mut TcpStream) -> io::Result<IncomingResult> {
     let mut position = 0;
-    let preamble_end : usize;
+    let preamble_end: usize;
     let mut buffer = vec![0; 1024];
     loop {
         let n = io.read(&mut buffer[position..]).await?;
@@ -37,7 +37,8 @@ pub async fn sniff_incoming_connection(io: &mut TcpStream) -> io::Result<Incomin
             break;
         }
     }
-    let preamble = String::from_utf8(buffer[..preamble_end].to_vec()).expect("invalid data received");
+    let preamble =
+        String::from_utf8(buffer[..preamble_end].to_vec()).expect("invalid data received");
     let mut lines = preamble.lines();
     let first_line = lines.next().unwrap();
 
@@ -53,12 +54,11 @@ pub async fn sniff_incoming_connection(io: &mut TcpStream) -> io::Result<Incomin
             http_version,
             headers: lines.map(String::from).collect(),
         },
-        buffered: buffer[preamble_end+4..position].to_vec(),
+        buffered: buffer[preamble_end + 4..position].to_vec(),
     });
 }
 
 pub async fn two_way_pipe(t: &mut TcpStream, s: &mut TcpStream) -> io::Result<()> {
-
     let (mut tr, mut tw) = t.split();
     let (mut sr, mut sw) = s.split();
 

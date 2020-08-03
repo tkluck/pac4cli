@@ -1,15 +1,15 @@
 use ini::Ini;
+use slog::FilterLevel;
 use std::path::PathBuf;
 use std::str::FromStr;
 use structopt::StructOpt;
-use slog::FilterLevel;
 
 use crate::pacparser::ProxySuggestion;
 
 /// Run a simple HTTP proxy on localhost that uses a wpad.dat to decide how to connect to the
 /// actual server
 #[derive(Debug, StructOpt, Clone)]
-#[structopt(name = "pac4cli", rename_all="kebab")]
+#[structopt(name = "pac4cli", rename_all = "kebab")]
 pub struct CmdLineOptions {
     /// Path to configuration file
     #[structopt(short, long)]
@@ -20,7 +20,7 @@ pub struct CmdLineOptions {
     pub port: u16,
 
     /// Forward traffic according to PROXY STRING, e.g. DIRECT or PROXY <proxy>
-    #[structopt(short="F", long)]
+    #[structopt(short = "F", long)]
     pub force_proxy: Option<ProxySuggestion>,
 
     /// Forward traffic according to a wpad.dat at this URL
@@ -45,7 +45,6 @@ fn try_parse_filter_level(s: &str) -> Result<FilterLevel, String> {
         Err(()) => Err("Uknown loglevel".to_string()),
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct Options {

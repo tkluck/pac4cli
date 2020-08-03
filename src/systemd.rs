@@ -2,7 +2,7 @@ extern crate libc;
 use self::libc::c_char;
 use std::ffi::CStr;
 
-#[link(name="systemd")]
+#[link(name = "systemd")]
 extern "C" {
     fn sd_notify(unset_environment: i64, state: *const c_char) -> i64;
 }
