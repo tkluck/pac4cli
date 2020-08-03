@@ -7,10 +7,7 @@ use tokio::prelude::*;
 
 use uri;
 
-mod connection;
-mod protocol;
-
-use self::connection::two_way_pipe;
+use crate::connection::two_way_pipe;
 use crate::wpad;
 use crate::wpad::ProxySuggestion;
 
@@ -49,7 +46,7 @@ where
     debug!("Destination is {}:{}", host, port);
 
     let upstream_address: (String, u16);
-    let preamble_for_upstream: Option<protocol::Preamble>;
+    let preamble_for_upstream: Option<connection::Preamble>;
     let buffered_for_upstream: Vec<u8>;
     let my_response_for_downstream: Option<&'static [u8]>;
 

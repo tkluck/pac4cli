@@ -2,11 +2,37 @@ use tokio::io;
 use tokio::net;
 use tokio::prelude::*;
 
-use crate::proxy::protocol;
+#[derive(Debug, Clone)]
+pub struct Preamble {
+    pub method: String,
+    pub uri: String,
+    pub http_version: String,
+    pub headers: Vec<String>,
+}
+
+impl Preamble {
+    pub async fn write<IO: std::marker::Unpin + io::AsyncWrite>(
+        self,
+        io: &mut IO,
+    ) -> io::Result<()> {
+        io.write_all(self.method.as_bytes()).await?;
+        io.write_all(b" ").await?;
+        io.write_all(self.uri.as_bytes()).await?;
+        io.write_all(b" ").await?;
+        io.write_all(self.http_version.as_bytes()).await?;
+        io.write_all(b"\r\n").await?;
+        for header in self.headers {
+            io.write_all(header.as_bytes()).await?;
+            io.write_all(b"\r\n").await?;
+        }
+        io.write_all(b"\r\n").await?;
+        return Ok(());
+    }
+}
 
 #[derive(Debug)]
 pub struct IncomingResult {
-    pub preamble: protocol::Preamble,
+    pub preamble: Preamble,
     pub buffered: Vec<u8>,
 }
 
@@ -48,7 +74,7 @@ pub async fn sniff_incoming_connection(io: &mut net::TcpStream) -> io::Result<In
     let http_version = String::from(items.next().unwrap());
 
     return Ok(IncomingResult {
-        preamble: protocol::Preamble {
+        preamble: Preamble {
             method,
             uri,
             http_version,

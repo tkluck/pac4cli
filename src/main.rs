@@ -13,6 +13,7 @@ use systemd::daemon;
 use tokio::net;
 use tokio::signal::unix;
 
+mod connection;
 mod networkmanager;
 mod options;
 mod pacparser;
