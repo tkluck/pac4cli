@@ -11,8 +11,8 @@ mod connection;
 mod protocol;
 
 use self::connection::two_way_pipe;
-use crate::pacparser::ProxySuggestion;
 use crate::wpad;
+use crate::wpad::ProxySuggestion;
 
 async fn send_error(conn: &mut net::TcpStream) -> io::Result<()> {
     conn.write_all(b"<h1>Could not connect</h1>").await?;

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+use std::string::ParseError;
 use std::sync;
 
 use async_trait::async_trait;
@@ -6,7 +8,6 @@ use reqwest;
 use crate::options;
 use crate::pacparser;
 use crate::wpad;
-use pacparser::ProxySuggestion;
 
 #[derive(Clone, Debug)]
 pub struct WPADInfo {
@@ -17,6 +18,43 @@ pub struct WPADInfo {
 #[async_trait]
 pub trait NetworkEnvironment {
     async fn get_wpad_info(&self) -> Result<WPADInfo, ()>;
+}
+
+#[derive(Clone, Debug)]
+pub enum ProxySuggestion {
+    Direct,
+    Proxy { host: String, port: Option<u16> },
+}
+
+impl FromStr for ProxySuggestion {
+    type Err = ParseError;
+
+    fn from_str(suggestion: &str) -> Result<Self, Self::Err> {
+        if suggestion == "DIRECT" {
+            Ok(ProxySuggestion::Direct)
+        } else if suggestion.starts_with("PROXY ") {
+            let mut parts = suggestion[6..].split(":");
+            let host = String::from(parts.next().unwrap());
+            let port = match parts.next() {
+                None => None,
+                Some(p) => Some(p.parse::<u16>().expect("invalid port")),
+            };
+            Ok(ProxySuggestion::Proxy { host, port })
+        } else {
+            // TODO: error instead
+            Ok(ProxySuggestion::Direct)
+        }
+    }
+}
+
+fn find_proxy_suggestions(url: &str, host: &str) -> Vec<ProxySuggestion> {
+    return pacparser::find_proxy(&url, &host)
+        .split(";")
+        .map(|s| {
+            s.parse::<ProxySuggestion>()
+                .expect("failed to parse proxy suggestion")
+        })
+        .collect();
 }
 
 #[derive(Debug, Clone)]
@@ -69,9 +107,7 @@ impl<T: NetworkEnvironment> ProxyResolver<T> {
         match &*behavior {
             ProxyResolutionBehavior::Static(proxy_suggestion) => proxy_suggestion.clone(),
             // TODO: try all instead of just the first
-            ProxyResolutionBehavior::WPAD(_) => {
-                pacparser::find_proxy_suggestions(url, host).remove(0)
-            }
+            ProxyResolutionBehavior::WPAD(_) => find_proxy_suggestions(url, host).remove(0),
         }
     }
 

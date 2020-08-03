@@ -4,7 +4,7 @@ use std::path;
 use std::str::FromStr;
 use structopt::StructOpt;
 
-use crate::pacparser::ProxySuggestion;
+use crate::wpad::ProxySuggestion;
 
 /// Run a simple HTTP proxy on localhost that uses a wpad.dat to decide how to connect to the
 /// actual server
