@@ -12,6 +12,7 @@ use tokio::signal::unix::{signal, SignalKind};
 use tokio::net::TcpListener;
 use structopt::StructOpt;
 
+mod networkmanager;
 mod pacparser;
 mod options;
 mod proxy;
@@ -42,7 +43,9 @@ async fn main() {
 
     pacparser::init().expect("Failed to initialize pacparser");
 
-    let proxy_resolver = wpad::ProxyResolver::load(flags.clone()).await;
+    let network_env = networkmanager::NetworkManager::new();
+
+    let proxy_resolver = wpad::ProxyResolver::load(network_env, flags.clone()).await;
     let proxy_resolver_ref = Arc::new(proxy_resolver);
 
     let mut sighups = signal(SignalKind::hangup()).unwrap();

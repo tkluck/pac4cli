@@ -13,6 +13,7 @@ mod protocol;
 use self::connection::two_way_pipe;
 use self::protocol::Preamble;
 use crate::pacparser::ProxySuggestion;
+use crate::wpad;
 use crate::wpad::ProxyResolver;
 
 async fn send_error(conn: &mut TcpStream) -> io::Result<()> {
@@ -21,7 +22,8 @@ async fn send_error(conn: &mut TcpStream) -> io::Result<()> {
     Ok(())
 }
 
-pub async fn process_socket(mut downstream_connection: TcpStream, proxy_resolver: &ProxyResolver) -> io::Result<()>
+pub async fn process_socket<T>(mut downstream_connection: TcpStream, proxy_resolver: &ProxyResolver<T>) -> io::Result<()>
+    where T: wpad::NetworkEnvironment
 {
 
     let incoming_result = connection::sniff_incoming_connection(&mut downstream_connection).await?;
