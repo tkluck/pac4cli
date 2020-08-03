@@ -36,6 +36,8 @@ from dbusmock.templates.networkmanager import NMActiveConnectionState
 from dbusmock.templates.networkmanager import (MANAGER_IFACE,
                                                SETTINGS_OBJ, SETTINGS_IFACE)
 
+def wait_for_startup():
+    sleep(0.5)
 
 class TestProxyConfigurations(dbusmock.DBusTestCase):
     '''Test different ways of establishing the proxy'''
@@ -63,7 +65,7 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
 
     def test_direct_proxy(self):
         proxy = pac4cli["-F", "DIRECT", "-p", "23128"] & BG
-        sleep(3)
+        wait_for_startup()
         try:
             with plumbum.local.env(http_proxy="localhost:23128"):
                 curl("http://www.booking.com")
@@ -75,7 +77,7 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
         proxy1 = pac4cli["-F", "DIRECT", "-p", "23128"] & BG
         proxy2 = pac4cli["-F", "PROXY localhost:23128", "-p", "23129"] & BG
 
-        sleep(3)
+        wait_for_startup()
         try:
             with plumbum.local.env(http_proxy="localhost:23129"):
                 curl("http://www.booking.com")
@@ -154,13 +156,13 @@ class TestProxyConfigurations(dbusmock.DBusTestCase):
         fake_proxy_1 = (serve_once[23130] < testdir / "fake-proxy-1-response") & BG
         fake_proxy_2 = (serve_once[23131] < testdir / "fake-proxy-2-response") & BG
 
-        sleep(3)
+        wait_for_startup()
 
         # proxy getting its config from DHCP
         with plumbum.local.env(DBUS_SYSTEM_BUS_ADDRESS=os.environ['DBUS_SYSTEM_BUS_ADDRESS']):
             proxy_to_test = pac4cli["-p", "23129"] & BG(stdout=sys.stdout, stderr=sys.stderr)
 
-        sleep(3)
+        wait_for_startup()
         try:
             with plumbum.local.env(http_proxy="localhost:23129"):
                 self.assertEqual(
