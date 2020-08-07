@@ -132,25 +132,17 @@ impl<T: NetworkEnvironment> ProxyResolver<T> {
         }
     }
     async fn get_wpad_urls(network_env: &T) -> Result<Vec<String>, ()> {
-        let maybe_info = network_env.get_wpad_info().await;
-        match maybe_info {
-            Err(dbus_err) => {
-                warn!("dbus error: {:?}", dbus_err);
-                Err(())
-            }
-            Ok(info) => {
-                info!("Found network information: {:?}", info);
-                let url_strings = match info.wpad_option {
-                    None => info
-                        .domains
-                        .iter()
-                        .map(|d| format!("http://wpad.{}/wpad.dat", d))
-                        .collect(),
-                    Some(url) => [url].to_vec(),
-                };
-                Ok(url_strings)
-            }
-        }
+        let info = network_env.get_wpad_info().await?;
+        info!("Found network information: {:?}", info);
+        let url_strings = match info.wpad_option {
+            None => info
+                .domains
+                .iter()
+                .map(|d| format!("http://wpad.{}/wpad.dat", d))
+                .collect(),
+            Some(url) => [url].to_vec(),
+        };
+        Ok(url_strings)
     }
 }
 

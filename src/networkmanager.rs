@@ -51,20 +51,23 @@ impl NetworkManager {
             )
             .await?;
 
-            debug!("received config path: {:?}", config_path);
-            let options = get_dict(
-                &self.dbus_conn,
-                config_path.clone(),
-                "org.freedesktop.NetworkManager.DHCP4Config",
-                "Options",
-            )
-            .await?;
+            if config_path != Path::from("/") {
+                debug!("received dhcp4 config path: {:?}", config_path);
+                let options = get_dict(
+                    &self.dbus_conn,
+                    config_path.clone(),
+                    "org.freedesktop.NetworkManager.DHCP4Config",
+                    "Options",
+                )
+                .await?;
 
-            debug!("received dhcp4 options: {:?}", options);
-            wpad_info.wpad_option = match options.get(&String::from("wpad")) {
-                None => None,
-                Some(s) => Some(s.0.clone()),
-            };
+                debug!("received dhcp4 options: {:?}", options);
+                wpad_info.wpad_option = match options.get(&String::from("wpad")) {
+                    None => None,
+                    Some(s) => Some(s.0.clone()),
+                };
+            }
+
             let config_path = get_path(
                 &self.dbus_conn,
                 active_connection.clone(),
@@ -73,17 +76,18 @@ impl NetworkManager {
             )
             .await?;
 
-            debug!("received config path: {:?}", config_path);
-            let domains = get_list_of_strings(
-                &self.dbus_conn,
-                config_path.clone(),
-                "org.freedesktop.NetworkManager.IP4Config",
-                "Domains",
-            )
-            .await?;
+            if config_path != Path::from("/") {
+                debug!("received ip4 config path: {:?}", config_path);
+                let domains = get_list_of_strings(
+                    &self.dbus_conn,
+                    config_path.clone(), "org.freedesktop.NetworkManager.IP4Config",
+                    "Domains",
+                )
+                .await?;
 
-            debug!("received domains: {:?}", domains);
-            wpad_info.domains.extend(domains);
+                debug!("received domains: {:?}", domains);
+                wpad_info.domains.extend(domains);
+            }
         }
         return Ok(wpad_info);
     }
@@ -92,7 +96,10 @@ impl NetworkManager {
 #[async_trait]
 impl wpad::NetworkEnvironment for NetworkManager {
     async fn get_wpad_info(&self) -> Result<wpad::WPADInfo, ()> {
-        self._get_wpad_info().await.map_err(|_| ())
+        self._get_wpad_info().await.map_err(|dbus_err| {
+            warn!("dbus error: {:?}", dbus_err);
+            ()
+        })
     }
 }
 
