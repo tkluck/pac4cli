@@ -4,21 +4,25 @@ version = "0.1.0"
 authors = ["Timo Kluck <tkluck@infty.nl>"]
 edition = '2018'
 
+[features]
+default = ["network-manager", "slog-journald", "systemd"]
+network-manager = ["dbus", "dbus-tokio"]
+
 [dependencies]
 async-trait = "0.1.36"
 tokio = {"version"= "0.2", features=["macros", "io-util", "signal"]}
 libc = "0.2.0"
 futures = "0.1.17"
 uri = "0.3.0"
-dbus = "0.8"
-dbus-tokio = "0.5"
+dbus = {"version"="0.8", optional=true}
+dbus-tokio = {"version"="0.5", optional=true}
 hyper = "0.13"
 reqwest = "0.10"
 slog = "2.5"
 slog-scope = "4.0.1"
 slog-term = "2.3.0"
-slog-journald = "2.0.0"
+slog-journald = {"version"="2.0.0", optional=true}
 structopt = "0.3"
-systemd = "0.4"
+systemd = {"version"="0.4", optional=true}
 tokio-signal = "0.1.5"
 rust-ini = "0.10"
